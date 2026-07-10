@@ -44,9 +44,19 @@ updates:
     commit-message:
       prefix: "fix(deps)"
     groups:
+      react-router:
+        patterns:
+          - "react-router"
+          - "@react-router/*"
+        update-types:
+          - minor
+          - patch
       npm-minor-and-patch:
         patterns:
           - "*"
+        exclude-patterns:
+          - "react-router"
+          - "@react-router/*"
         update-types:
           - minor
           - patch
