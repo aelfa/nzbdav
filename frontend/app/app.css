@@ -1,27 +1,154 @@
-:root {
-  --top-nav-height: 60px;
-  --left-nav-width: 270px;
-  --body-background-color: hsl(198 100% 4%);
-  --top-nav-background-color: hsl(200 100% 7.65%);
-  --left-nav-background-color: hsl(196.8 100% 4.9%);
-  --page-padding: 25px;
+@import "tailwindcss";
+@import "material-symbols/rounded.css";
+
+@layer base {
+  :root,
+  [data-appearance-theme="dark"] {
+    --app-bg: #111827;
+    --app-bg-soft: #1f2937;
+    --app-surface: #1e293b;
+    --app-surface-muted: #334155;
+    --app-panel-deep: #020617;
+    --app-border: #475569;
+    --app-border-soft: #334155;
+    --app-text: #f8fafc;
+    --app-text-muted: #cbd5e1;
+    --app-text-faint: #94a3b8;
+    --app-accent: #2563eb;
+    --app-accent-hover: #3b82f6;
+    --app-accent-soft: rgba(37, 99, 235, 0.18);
+    --app-accent-contrast: #ffffff;
+    --app-success: #059669;
+    --app-success-hover: #10b981;
+    --app-warning: #d97706;
+    --app-danger: #dc2626;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    @apply m-0 min-h-full min-w-full bg-gray-900 text-white antialiased;
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  body {
+    min-height: 100dvh;
+  }
+
+  button,
+  [role="button"] {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  button:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  input,
+  select,
+  textarea {
+    background-color: var(--app-panel-deep);
+    border-color: var(--app-border);
+    color: var(--app-text);
+  }
 }
 
-html, body {
-  margin: 0;
-  min-width: 100%;
-  min-height: 100%;
-  position: absolute;
-  background-color: var(--body-background-color);
-  color: white;
-  font-family: Arial, Helvetica, sans-serif;
+@layer components {
+  .button-base {
+    @apply inline-flex items-center justify-center gap-2 font-medium transition-all duration-200 ease-in-out;
+  }
+
+  .button-xsmall {
+    @apply rounded-md px-2 py-1 text-xs;
+  }
+
+  .button-small {
+    @apply rounded-md px-3 py-2 text-sm;
+  }
+
+  .button-medium {
+    @apply rounded-lg px-4 py-3 text-sm;
+  }
+
+  .button-large {
+    @apply rounded-lg p-4 text-sm;
+  }
+
+  .button-rounded {
+    @apply rounded-full px-4 py-3 text-sm;
+  }
+
+  .form-input {
+    @apply rounded border border-slate-600 bg-transparent px-2 py-1 text-sm text-slate-200 outline-none focus:border-blue-500;
+  }
+
+  .form-select {
+    @apply rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200 outline-none focus:border-blue-500;
+  }
+
+  .surface-card {
+    @apply rounded-lg bg-gray-800 p-2.5 shadow-md md:p-3;
+  }
+
+  .panel {
+    @apply rounded border border-slate-700/70 bg-slate-800;
+  }
 }
 
-/* bootstrap overrides */
-.modal-open {
-  overflow-y: unset !important;
-}
-.modal {
-  --bs-modal-margin: 20px !important;
-  --bs-modal-bg: hsl(196.8 25% 14.51%);
+@layer utilities {
+  [data-appearance-theme] .bg-gray-900,
+  [data-appearance-theme] .bg-slate-900 {
+    background-color: var(--app-bg);
+  }
+
+  [data-appearance-theme] .bg-slate-950,
+  [data-appearance-theme] .bg-black {
+    background-color: var(--app-panel-deep);
+  }
+
+  [data-appearance-theme] .bg-slate-800,
+  [data-appearance-theme] .bg-gray-800 {
+    background-color: var(--app-surface);
+  }
+
+  [data-appearance-theme] .bg-slate-700,
+  [data-appearance-theme] .bg-gray-700,
+  [data-appearance-theme] .bg-slate-600 {
+    background-color: var(--app-surface-muted);
+  }
+
+  [data-appearance-theme] .text-white,
+  [data-appearance-theme] .text-slate-100,
+  [data-appearance-theme] .text-slate-200 {
+    color: var(--app-text);
+  }
+
+  [data-appearance-theme] .text-slate-300,
+  [data-appearance-theme] .text-slate-400,
+  [data-appearance-theme] .text-gray-400,
+  [data-appearance-theme] .text-slate-500 {
+    color: var(--app-text-muted);
+  }
+
+  [data-appearance-theme] .border-slate-600,
+  [data-appearance-theme] .border-slate-700,
+  [data-appearance-theme] .border-slate-800 {
+    border-color: var(--app-border);
+  }
+
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .yes-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-accent) transparent;
+  }
 }
