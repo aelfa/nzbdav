@@ -121,6 +121,7 @@ class Program
 
         // run
         var app = builder.Build();
+        _ = app.Services.GetRequiredService<QueueManager>();
         app.UseMiddleware<ExceptionMiddleware>();
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(30) });
         app.MapHealthChecks("/health");
