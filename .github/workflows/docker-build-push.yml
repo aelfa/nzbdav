@@ -17,7 +17,7 @@ on:
         type: string
         default: ""
     secrets:
-      GITHUB_TOKEN:
+      registry_token:
         required: true
 
 jobs:
@@ -43,7 +43,7 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.registry_token }}
 
       - name: Build and push Docker image (amd64 + arm64)
         uses: docker/build-push-action@v7
@@ -56,6 +56,6 @@ jobs:
             NZBDAV_VERSION=${{ inputs.nzbdav_version }}
             REPO_URL=https://github.com/${{ github.repository }}
           secrets: |
-            github_token=${{ secrets.GITHUB_TOKEN }}
+            github_token=${{ secrets.registry_token }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

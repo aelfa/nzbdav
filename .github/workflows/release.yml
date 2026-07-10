@@ -44,4 +44,4 @@ jobs:
       nzbdav_version: ${{ needs.release.outputs.major }}.${{ needs.release.outputs.minor }}.${{ needs.release.outputs.patch }}
       checkout_ref: ${{ needs.release.outputs.sha }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      registry_token: ${{ secrets.GITHUB_TOKEN }}

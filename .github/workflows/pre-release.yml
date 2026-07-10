@@ -21,4 +21,4 @@ jobs:
       tags: ghcr.io/${{ github.repository }}:pre-release
       nzbdav_version: pre-${{ github.run_number }}
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      registry_token: ${{ secrets.GITHUB_TOKEN }}
