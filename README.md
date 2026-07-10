@@ -29,7 +29,7 @@ It also exposes a **SABnzbd-compatible API**, so Sonarr, Radarr, and similar too
 * 🗃️ **Archive streaming** — view, stream, and seek inside RAR and 7z archives
 * 🔓 **Password-protected archives** — stream encrypted content transparently
 * 🔀 **Multiple Usenet providers** — automatic failover with per-provider circuit breakers
-* 💙 **Health checks & repairs** — automatically replace content that's been removed from your provider
+* 💙 **Health checks & optional repairs** — monitor content health and trigger replacements through Radarr/Sonarr when configured
 * 🧩 **SABnzbd-compatible API** — drop-in replacement for SABnzbd
 * 🙌 **Sonarr/Radarr integration** — import through Rclone symlinks or lightweight STRM files
 
@@ -40,6 +40,8 @@ NzbDav ships as a single Docker image. To try it out:
 ```bash
 docker run --rm -it -p 3000:3000 ghcr.io/nzbdav/nzbdav:latest
 ```
+
+This trial command is ephemeral: its settings are discarded when the container exits.
 
 For a persistent setup, use Docker Compose:
 

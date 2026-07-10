@@ -108,6 +108,8 @@ Run the container:
 docker compose up -d
 ```
 
+The image runs two processes: the frontend and public proxy on port `3000`, and the backend on internal port `8080`. Clients should use port `3000`; the compose healthcheck follows the login/onboarding flow so it verifies that the frontend can also reach the backend.
+
 > [!IMPORTANT]
 > Port `3000` serves plain HTTP. If NzbDav will be reachable outside your trusted network, put it behind an HTTPS reverse proxy and do not expose the container port directly to the internet. WebDAV uses Basic authentication, so remote access without TLS exposes credentials. When the proxy runs on the Docker host, bind the port to localhost with `127.0.0.1:3000:3000`.
 
@@ -170,11 +172,11 @@ You can find the optimal **Max Download Connections** for your network (`Setting
      ```
 
    * Download a movie `.nzb` via your indexer website and upload it to NzbDav.
-   * In the NzbDav UI, go to `Dav Explore` → `Content` → `Movies` → pick the movie you just added → right-click the **video file** and click `Copy Link Address`. Paste it into a text editor so you can see the whole URL.
-   * Construct a test command like below and run it in another terminal window:
+   * In the NzbDav UI, go to `Dav Explore` → `content` → your movie category (normally `movies`) → pick the movie you just added. Right-click the **Download** link for its video file and use your browser's **Copy Link Address** action.
+   * The copied link uses the public frontend on port `3000`. For a benchmark inside the combined container, preserve its exact case-sensitive path and `downloadKey`, but replace the scheme/host/port with the internal backend address `http://localhost:8080`. For example:
 
      ```bash
-     docker exec nzbdav curl -sS --max-time 20 -o /dev/null -w 'Average: %{speed_download} bytes/s\n' 'http://localhost:8080/view/content/Movies/<Movie Folder>/<Movie Name>.mkv?downloadKey=<download-key>'
+     docker exec nzbdav curl -sS --max-time 20 -o /dev/null -w 'Average: %{speed_download} bytes/s\n' 'http://localhost:8080/view/content/movies/<movie-folder>/<movie-name>.mkv?downloadKey=<download-key>'
      ```
 
      The timeout message after 20 seconds is expected. Note the average speed and container CPU usage; multiply bytes/second by eight to compare it with a network speed reported in bits/second.
@@ -322,6 +324,8 @@ The official Rclone image does not use `PUID`/`PGID` environment variables. The 
 
 Go to Radarr/Sonarr → `Settings` → `Download Clients` → `Add Download Client`:
 
+The hostnames in this guide (`nzbdav`, `radarr`, and `sonarr`) only resolve when the containers share a Docker network. If they run in separate Compose projects, attach them to a shared external network or use hostnames/addresses that are reachable between the projects.
+
 | Setting | Value |
 |---------|-------|
 | Client | **SABnzbd** |
@@ -350,7 +354,9 @@ Go to NzbDav `Settings` → `Radarr/Sonarr`.
      * Episode was not found in the grabbed release.
      * Episode was unexpected considering the folder name.
      * Invalid season or episode.
+     * Single episode file contains all episodes in seasons.
      * Unable to determine if file is a sample.
+     * Found archive file, might need to be extracted.
    * **Remove, Blocklist, and Search:**
      * No files found are eligible for import.
      * No audio tracks detected.
@@ -370,7 +376,7 @@ Go to NzbDav `Settings` → `Radarr/Sonarr`.
    * Whichever strategy you choose, the completed path NzbDav reports must be visible inside Radarr/Sonarr at the exact same path.
 2. **Repairs (`Settings` → `Repairs`):**
    * **Library Directory:** `/mnt/media` — point this to the root folder where your actual movie/TV libraries live on the host.
-   * **Enable Background Repairs:** Checked. This lets NzbDav monitor for dead links in your library and trigger redownloads automatically.
+   * **Enable Background Repairs:** Checked. This lets NzbDav monitor for dead links in your library and trigger redownloads automatically. The checkbox remains disabled until the Library Directory and at least one Radarr/Sonarr instance are configured.
 
 ---
 
@@ -422,9 +428,21 @@ Go to the **Save & Install** tab, click **Save**, and then install the addon to 
 
 ## Phase 6 — Operations
 
+### Back up NzbDav
+
+Back up the host directory mapped to `/config` (shown as `./config` in this guide). It contains the database, settings, credentials, and persisted application data, so store the backup securely. Stop the container or use a filesystem snapshot to get a consistent backup:
+
+```bash
+docker compose stop nzbdav
+tar -czf nzbdav-config-backup.tar.gz ./config
+docker compose start nzbdav
+```
+
+The `rclone-cache` directory is disposable and should not be included in backups.
+
 ### Update NzbDav
 
-From the directory containing `docker-compose.yml`:
+Back up `/config` before updating. From the directory containing `docker-compose.yml`:
 
 ```bash
 docker compose pull nzbdav
@@ -440,17 +458,8 @@ docker compose up -d nzbdav_rclone
 
 The `latest` tag follows stable releases. For reproducible deployments, replace `latest` with a specific release tag from the [GitHub releases page](https://github.com/nzbdav/nzbdav/releases).
 
-### Back up NzbDav
-
-Back up the host directory mapped to `/config` (shown as `./config` in this guide). It contains the database, settings, credentials, and persisted application data, so store the backup securely. Stop the container or use a filesystem snapshot to get a consistent backup:
-
-```bash
-docker compose stop nzbdav
-tar -czf nzbdav-config-backup.tar.gz ./config
-docker compose start nzbdav
-```
-
-The `rclone-cache` directory is disposable and should not be included in backups.
+> [!IMPORTANT]
+> When upgrading an installation older than `0.6.0`, NzbDav deliberately stops before the irreversible database migration. After making a complete `/config` backup, add `UPGRADE: "0.6.0"` to the NzbDav service's `environment`, run the update again, and remove the variable after the upgrade succeeds.
 
 ### View logs
 
@@ -459,4 +468,4 @@ docker compose logs --tail=200 -f nzbdav
 docker compose logs --tail=200 -f nzbdav_rclone
 ```
 
-If the Rclone mount fails, first verify that `/dev/fuse` exists on the host, the sidecar has started after NzbDav became healthy, and the WebDAV username/password in `rclone.conf` match `Settings` → `WebDAV`.
+If the Rclone mount fails, first verify that `/dev/fuse` exists on the host, the sidecar has started after NzbDav became healthy, and the WebDAV username/password in `rclone.conf` match `Settings` → `WebDAV`. If Rclone specifically rejects `--allow-other`, enable `user_allow_other` in the FUSE configuration available inside the sidecar.
