@@ -1,9 +1,8 @@
-import { Alert, Button, Form as BootstrapForm } from "react-bootstrap";
-import styles from "./route.module.css"
 import type { Route } from "./+types/route";
 import { isAuthenticated, login } from "~/auth/authentication.server";
 import { Form, redirect, useNavigation } from "react-router";
 import { backendClient } from "~/clients/backend-client.server";
+import { Alert, Button, Input, Spinner } from "~/components/ui";
 
 type LoginPageData = {
     loginError: string
@@ -30,14 +29,57 @@ export default function Index({ loaderData, actionData }: Route.ComponentProps) 
     const submitButtonText = isLoading ? "Logging in..." : "Login";
 
     return (
-        <Form className={styles["container"]} method="POST">
-            <img className={styles["logo"]} src="/logo.svg"></img>
-            <div className={styles["title"]}>Nzb DAV</div>
-            <Alert className={styles["error"]} show={showError} variant="danger">{pageData.loginError}</Alert>
-            <BootstrapForm.Control name="username" type="text" placeholder="Username" autoFocus />
-            <BootstrapForm.Control name="password" type="password" placeholder="Password" />
-            <Button type="submit" variant="primary" disabled={submitButtonDisabled}>{submitButtonText}</Button>
-        </Form>
+        <main className="flex min-h-dvh w-full items-center justify-center bg-gray-900 px-4 py-8 text-white">
+            <Form
+                className="w-full max-w-sm space-y-5 rounded-xl border border-slate-700/70 bg-gray-800 p-6 shadow-xl shadow-black/20 sm:p-8"
+                method="POST"
+            >
+                <div className="flex flex-col items-center gap-3 text-center">
+                    <img className="h-16 w-16" src="/logo.svg" alt="NzbDav" />
+                    <div>
+                        <h1 className="text-2xl font-bold tracking-tight">NzbDav</h1>
+                        <p className="mt-1 text-sm text-slate-400">Sign in to manage your server</p>
+                    </div>
+                </div>
+
+                {showError && <Alert variant="danger">{pageData.loginError}</Alert>}
+
+                <div className="space-y-4">
+                    <label className="block space-y-1.5">
+                        <span className="text-xs font-medium text-slate-300">Username</span>
+                        <Input
+                            className="w-full bg-slate-950/40 px-3 py-2.5"
+                            name="username"
+                            type="text"
+                            placeholder="Enter your username"
+                            autoComplete="username"
+                            autoFocus
+                        />
+                    </label>
+                    <label className="block space-y-1.5">
+                        <span className="text-xs font-medium text-slate-300">Password</span>
+                        <Input
+                            className="w-full bg-slate-950/40 px-3 py-2.5"
+                            name="password"
+                            type="password"
+                            placeholder="Enter your password"
+                            autoComplete="current-password"
+                        />
+                    </label>
+                </div>
+
+                <Button
+                    className="w-full"
+                    type="submit"
+                    size="medium"
+                    variant="primary"
+                    disabled={submitButtonDisabled}
+                >
+                    {isLoading && <Spinner className="text-white" />}
+                    {submitButtonText}
+                </Button>
+            </Form>
+        </main>
     );
 }
 
