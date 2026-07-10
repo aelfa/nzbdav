@@ -12,6 +12,7 @@ public class ConfigManager
     public static readonly string AppVersion = EnvironmentUtil.GetEnvironmentVariable("NZBDAV_VERSION") ?? "unknown";
 
     private readonly Dictionary<string, string> _config = new();
+    private readonly Dictionary<(string Name, Type Type), object?> _deserializedConfig = new();
     public event EventHandler<ConfigEventArgs>? OnConfigChanged;
 
     public async Task LoadConfig()
@@ -21,6 +22,7 @@ public class ConfigManager
         lock (_config)
         {
             _config.Clear();
+            _deserializedConfig.Clear();
             foreach (var configItem in configItems)
             {
                 _config[configItem.ConfigName] = configItem.ConfigValue;
@@ -38,8 +40,20 @@ public class ConfigManager
 
     private T? GetConfigValue<T>(string configName)
     {
-        var rawValue = StringUtil.EmptyToNull(GetConfigValue(configName));
-        return rawValue == null ? default : JsonSerializer.Deserialize<T>(rawValue);
+        lock (_config)
+        {
+            if (!_config.TryGetValue(configName, out var storedValue)) return default;
+            var rawValue = StringUtil.EmptyToNull(storedValue);
+            if (rawValue == null) return default;
+
+            var cacheKey = (configName, typeof(T));
+            if (_deserializedConfig.TryGetValue(cacheKey, out var cachedValue))
+                return cachedValue is null ? default : (T)cachedValue;
+
+            var value = JsonSerializer.Deserialize<T>(rawValue);
+            _deserializedConfig[cacheKey] = value;
+            return value;
+        }
     }
 
     public void UpdateValues(List<ConfigItem> configItems)
@@ -49,6 +63,12 @@ public class ConfigManager
             foreach (var configItem in configItems)
             {
                 _config[configItem.ConfigName] = configItem.ConfigValue;
+                foreach (var cacheKey in _deserializedConfig.Keys
+                             .Where(key => key.Name == configItem.ConfigName)
+                             .ToArray())
+                {
+                    _deserializedConfig.Remove(cacheKey);
+                }
             }
         }
 
