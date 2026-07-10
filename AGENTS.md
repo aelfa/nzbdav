@@ -204,6 +204,7 @@ Do not accumulate a large uncommitted diff across unrelated areas.
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `ci.yml` | PRs and pushes to `main` | Frontend typecheck + backend build (fast validation) |
+| `codeql.yml` | PRs, pushes to `main`, and weekly schedule | CodeQL security analysis for C#, TypeScript, and GitHub Actions |
 | `pre-release.yml` | Pushes to `main` (except release commits) | Publishes `ghcr.io/.../nzbdav:pre-release` |
 | `release.yml` | Pushes to `main` | release-please versioning; publishes semver tags on release |
 | `docker-build-push.yml` | Reusable (called by pre-release/release) | Multi-arch Docker build with GHA cache |
