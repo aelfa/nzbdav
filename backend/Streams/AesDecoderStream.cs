@@ -1,4 +1,5 @@
 ﻿using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using NzbWebDAV.Models;
 
 namespace NzbWebDAV.Streams
@@ -23,8 +24,7 @@ namespace NzbWebDAV.Streams
         private readonly byte[] _mBaseIv;
 
         private const int BlockSize = 16;
-        private const int DefaultPlainBufferSize = 4 << 10; // 4096
-        private const int DefaultCipherBufferBlocks = 8; // read up to 8 blocks at once
+        private const int BufferSize = 256 * 1024;
 
         public AesDecoderStream(Stream input, AesParams aesParams)
         {
@@ -45,13 +45,8 @@ namespace NzbWebDAV.Streams
 
             _mDecoder = _aes.CreateDecryptor(_mKey, _mBaseIv);
 
-            // plain buffer - capacity should be multiple of block size and >= one block
-            var psize = DefaultPlainBufferSize;
-            if ((psize & (BlockSize - 1)) != 0) psize += BlockSize - (psize & (BlockSize - 1));
-            if (psize < BlockSize) psize = BlockSize;
-            _plainBuffer = new byte[psize];
-
-            _cipherBuffer = new byte[BlockSize * DefaultCipherBufferBlocks];
+            _plainBuffer = new byte[BufferSize];
+            _cipherBuffer = new byte[BufferSize];
 
             _plainStart = _plainEnd = 0;
             _mWritten = 0;
@@ -99,6 +94,12 @@ namespace NzbWebDAV.Streams
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));
             if (offset < 0 || count < 0 || offset + count > buffer.Length) throw new ArgumentOutOfRangeException();
 
+            return await ReadAsync(buffer.AsMemory(offset, count), ct).ConfigureAwait(false);
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken ct = default)
+        {
             // Perform pending seek (deferred heavy work)
             if (_pendingSeekPosition != null)
             {
@@ -107,11 +108,11 @@ namespace NzbWebDAV.Streams
                 await SeekInternalAsync(pos, ct).ConfigureAwait(false);
             }
 
-            if (count == 0 || _mWritten == _mLimit)
+            if (buffer.Length == 0 || _mWritten == _mLimit)
                 return 0;
 
             // Cap to remaining logical decoded bytes
-            int toReturnAllowed = (int)Math.Min(count, _mLimit - _mWritten);
+            int toReturnAllowed = (int)Math.Min(buffer.Length, _mLimit - _mWritten);
             int totalCopied = 0;
 
             // First, deliver any already-decrypted bytes in the plain buffer
@@ -119,12 +120,11 @@ namespace NzbWebDAV.Streams
             {
                 int have = _plainEnd - _plainStart;
                 int take = Math.Min(have, toReturnAllowed);
-                Buffer.BlockCopy(_plainBuffer, _plainStart, buffer, offset, take);
+                _plainBuffer.AsSpan(_plainStart, take).CopyTo(buffer.Span);
                 _plainStart += take;
                 _mWritten += take;
                 totalCopied += take;
                 toReturnAllowed -= take;
-                offset += take;
 
                 if (_plainStart == _plainEnd)
                 {
@@ -135,88 +135,86 @@ namespace NzbWebDAV.Streams
                     return totalCopied;
             }
 
-            // Now read ciphertext and decrypt as many blocks as needed/fit
+            // Decrypt aligned runs directly into array-backed caller memory. For partial
+            // blocks or non-array-backed memory, decrypt a large run into the cache.
             while (toReturnAllowed > 0 && _mWritten < _mLimit)
             {
-                // Read up to cipherBuffer.Length bytes from underlying stream in one ReadAsync
-                int cipherRead = 0;
-                int firstRead = await _mStream.ReadAsync(_cipherBuffer, 0, _cipherBuffer.Length, ct)
-                    .ConfigureAwait(false);
-                if (firstRead == 0)
+                int directBytes = Math.Min(toReturnAllowed & ~(BlockSize - 1), BufferSize);
+                var destination = buffer.Slice(totalCopied, toReturnAllowed);
+                if (directBytes > 0 &&
+                    MemoryMarshal.TryGetArray((ReadOnlyMemory<byte>)destination,
+                        out ArraySegment<byte> destinationSegment))
                 {
-                    // underlying stream EOF
+                    int cipherRead = await ReadCiphertextAsync(directBytes, ct).ConfigureAwait(false);
+                    if (cipherRead == 0)
+                    {
+                        return totalCopied;
+                    }
+
+                    int processed = _mDecoder.TransformBlock(_cipherBuffer, 0, cipherRead,
+                        destinationSegment.Array!, destinationSegment.Offset);
+                    _mWritten += processed;
+                    totalCopied += processed;
+                    toReturnAllowed -= processed;
+                    continue;
+                }
+
+                long remainingDecoded = _mLimit - _mWritten;
+                int cacheTarget = remainingDecoded >= BufferSize
+                    ? BufferSize
+                    : ((int)remainingDecoded + BlockSize - 1) & ~(BlockSize - 1);
+                int bufferedCipherRead = await ReadCiphertextAsync(cacheTarget, ct).ConfigureAwait(false);
+                if (bufferedCipherRead == 0)
+                {
                     return totalCopied;
                 }
 
-                cipherRead = firstRead;
+                _plainStart = 0;
+                _plainEnd = _mDecoder.TransformBlock(_cipherBuffer, 0, bufferedCipherRead,
+                    _plainBuffer, 0);
 
-                // If we didn't read an integral number of blocks, try to read more until we either have whole blocks
-                // or underlying stream returns 0. Given the constructor check, partial final block is considered error.
-                while ((cipherRead & (BlockSize - 1)) != 0)
+                int bufferedTake = Math.Min(_plainEnd, toReturnAllowed);
+                _plainBuffer.AsSpan(0, bufferedTake).CopyTo(destination.Span);
+                _plainStart = bufferedTake;
+                _mWritten += bufferedTake;
+                totalCopied += bufferedTake;
+                toReturnAllowed -= bufferedTake;
+
+                if (_plainStart == _plainEnd)
                 {
-                    int need = BlockSize - (cipherRead & (BlockSize - 1));
-                    int r = await _mStream.ReadAsync(_cipherBuffer, cipherRead, need, ct).ConfigureAwait(false);
-                    if (r == 0)
-                    {
-                        // corrupt ciphertext (not multiple of blocksize)
-                        throw new EndOfStreamException(
-                            "Unexpected end of ciphertext stream (not a multiple of block size).");
-                    }
-
-                    cipherRead += r;
-                }
-
-                // Decrypt as many whole blocks as will fit into the plainBuffer
-                int decryptOffset = 0;
-                while (decryptOffset < cipherRead)
-                {
-                    int cipherRemaining = cipherRead - decryptOffset;
-                    int plainSpace = _plainBuffer.Length - _plainEnd;
-                    // If there is no plain space, compact the buffer if possible
-                    if (plainSpace < BlockSize && _plainStart > 0)
-                    {
-                        int existing = _plainEnd - _plainStart;
-                        if (existing > 0)
-                            Buffer.BlockCopy(_plainBuffer, _plainStart, _plainBuffer, 0, existing);
-                        _plainStart = 0;
-                        _plainEnd = existing;
-                        plainSpace = _plainBuffer.Length - _plainEnd;
-                    }
-
-                    // How many cipher bytes (multiple of blocksize) can we process now?
-                    int processBytes = Math.Min(cipherRemaining, plainSpace & ~(BlockSize - 1));
-                    if (processBytes == 0)
-                    {
-                        // plain buffer cannot accept even one block; we must stop decrypting and allow copying out
-                        break;
-                    }
-
-                    int processed = _mDecoder.TransformBlock(_cipherBuffer, decryptOffset, processBytes, _plainBuffer,
-                        _plainEnd);
-                    decryptOffset += processBytes;
-                    _plainEnd += processed;
-                }
-
-                // Copy decrypted bytes to destination
-                if (_plainEnd > _plainStart)
-                {
-                    int have = _plainEnd - _plainStart;
-                    int take = Math.Min(have, toReturnAllowed);
-                    Buffer.BlockCopy(_plainBuffer, _plainStart, buffer, offset, take);
-                    _plainStart += take;
-                    _mWritten += take;
-                    totalCopied += take;
-                    toReturnAllowed -= take;
-                    offset += take;
-
-                    if (_plainStart == _plainEnd)
-                    {
-                        _plainStart = _plainEnd = 0;
-                    }
+                    _plainStart = _plainEnd = 0;
                 }
             }
 
             return totalCopied;
+        }
+
+        private async ValueTask<int> ReadCiphertextAsync(int maximumBytes, CancellationToken ct)
+        {
+            int cipherRead = await _mStream.ReadAsync(_cipherBuffer.AsMemory(0, maximumBytes), ct)
+                .ConfigureAwait(false);
+            if (cipherRead == 0)
+            {
+                return 0;
+            }
+
+            // Complete a short final block without forcing every short read to fill the
+            // whole buffer. The constructor guarantees the ciphertext length is aligned.
+            while ((cipherRead & (BlockSize - 1)) != 0)
+            {
+                int need = BlockSize - (cipherRead & (BlockSize - 1));
+                int read = await _mStream.ReadAsync(_cipherBuffer.AsMemory(cipherRead, need), ct)
+                    .ConfigureAwait(false);
+                if (read == 0)
+                {
+                    throw new EndOfStreamException(
+                        "Unexpected end of ciphertext stream (not a multiple of block size).");
+                }
+
+                cipherRead += read;
+            }
+
+            return cipherRead;
         }
 
         public override void SetLength(long value) => throw new NotImplementedException();
