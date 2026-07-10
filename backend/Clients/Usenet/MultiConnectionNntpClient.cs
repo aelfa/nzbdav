@@ -168,9 +168,10 @@ public class MultiConnectionNntpClient(
                     LogException(() => onConnectionReadyAgain?.Invoke(result));
                 }
             }
-            catch (Exception e) when (e.IsCancellationException())
+            catch (Exception e) when (e.IsCancellationException(ct))
             {
                 deferredCallback.Discard();
+                LogException(() => connectionLock?.Replace());
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
                 throw;
@@ -244,7 +245,7 @@ public class MultiConnectionNntpClient(
             {
                 connectionLock = await connectionPool.GetConnectionLockAsync(priority, ct).ConfigureAwait(false);
             }
-            catch (Exception e) when (e.IsCancellationException())
+            catch (Exception e) when (e.IsCancellationException(ct))
             {
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
@@ -274,7 +275,7 @@ public class MultiConnectionNntpClient(
                 result = await command(connectionLock.Connection, deferredCallback.Invoke)
                     .ConfigureAwait(false);
             }
-            catch (Exception e) when (e.IsCancellationException())
+            catch (Exception e) when (e.IsCancellationException(ct))
             {
                 deferredCallback.Discard();
                 LogException(() => connectionLock?.Replace());

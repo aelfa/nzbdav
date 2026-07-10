@@ -112,7 +112,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
                 }
                 return new UsenetDecodedBodyBatch { Responses = responses };
             }
-            catch (Exception e) when (!e.IsCancellationException())
+            catch (Exception e) when (!e.IsCancellationException(cancellationToken))
             {
                 deferredCallback.Discard();
                 lastException = ExceptionDispatchInfo.Capture(e);
@@ -150,7 +150,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
             {
                 response = await primaryResponse.ConfigureAwait(false);
             }
-            catch (Exception e) when (!e.IsCancellationException())
+            catch (Exception e) when (!e.IsCancellationException(cancellationToken))
             {
                 lastException = ExceptionDispatchInfo.Capture(e);
             }
@@ -211,7 +211,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
                     lastException = null;
                 }
-                catch (Exception e) when (!e.IsCancellationException())
+                catch (Exception e) when (!e.IsCancellationException(cancellationToken))
                 {
                     deferredCallback.Discard();
                     coordinator.CompleteAttempt();
@@ -359,7 +359,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
                     onConnectionReadyAgain, ArticleBodyResult.NotRetrieved);
                 return result;
             }
-            catch (Exception e) when (!e.IsCancellationException())
+            catch (Exception e) when (!e.IsCancellationException(cancellationToken))
             {
                 deferredCallback.Discard();
                 lastException = ExceptionDispatchInfo.Capture(e);
@@ -410,7 +410,7 @@ public class MultiProviderNntpClient(List<MultiConnectionNntpClient> providers) 
 
                 return result;
             }
-            catch (Exception e) when (!e.IsCancellationException())
+            catch (Exception e) when (!e.IsCancellationException(cancellationToken))
             {
                 lastException = ExceptionDispatchInfo.Capture(e);
             }

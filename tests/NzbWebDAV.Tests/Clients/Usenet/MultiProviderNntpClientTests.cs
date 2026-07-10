@@ -65,6 +65,47 @@ public class MultiProviderNntpClientTests
         Assert.IsAssignableFrom<RetryableDownloadException>(exception);
     }
 
+    [Fact]
+    public async Task BatchSetup_WithStaleCancellation_RetriesOnAnotherConnection()
+    {
+        var connection = new ScriptedNntpClient
+        {
+            BatchResponseCode = 222,
+            BatchException = requestNumber => requestNumber == 1
+                ? new TaskCanceledException("Cancellation recorded by an earlier request.")
+                : null,
+        };
+        using var client = new MultiProviderNntpClient([CreateProvider(connection)]);
+
+        var batch = await client.DecodedBodiesAsync(
+            ["segment"], onConnectionReadyAgain: null, CancellationToken.None);
+        var response = await batch.Responses[0];
+
+        Assert.Equal(UsenetResponseType.ArticleRetrievedBodyFollows, response.ResponseType);
+        Assert.Equal(2, connection.BatchRequests);
+    }
+
+    [Fact]
+    public async Task BatchSetup_WithCurrentRequestCancellation_DoesNotRetry()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var connection = new ScriptedNntpClient
+        {
+            BatchResponseCode = 222,
+            BatchException = _ =>
+            {
+                cancellation.Cancel();
+                return new TaskCanceledException("Current request was cancelled.");
+            },
+        };
+        using var client = new MultiProviderNntpClient([CreateProvider(connection)]);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.DecodedBodiesAsync(
+                ["segment"], onConnectionReadyAgain: null, cancellation.Token));
+        Assert.Equal(1, connection.BatchRequests);
+    }
+
     private static MultiConnectionNntpClient CreateProvider(INntpClient connection)
     {
         var pool = new ConnectionPool<INntpClient>(
@@ -77,7 +118,9 @@ public class MultiProviderNntpClientTests
     {
         public required int BatchResponseCode { get; init; }
         public int SingularResponseCode { get; init; } = 222;
+        public Func<int, Exception?>? BatchException { get; init; }
         public Func<string, Exception>? SingularException { get; init; }
+        public int BatchRequests { get; private set; }
         public int SingularRequests { get; private set; }
 
         public override Task<UsenetDecodedBodyBatch> DecodedBodiesAsync(
@@ -85,6 +128,11 @@ public class MultiProviderNntpClientTests
             Action<ArticleBodyResult>? onConnectionReadyAgain,
             CancellationToken cancellationToken)
         {
+            BatchRequests++;
+            var exception = BatchException?.Invoke(BatchRequests);
+            if (exception != null)
+                throw exception;
+
             var responses = segmentIds
                 .Select(segmentId => Task.FromResult(CreateResponse(segmentId, BatchResponseCode)))
                 .ToArray();

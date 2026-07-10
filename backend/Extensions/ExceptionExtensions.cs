@@ -20,6 +20,14 @@ public static class ExceptionExtensions
         return exception is TaskCanceledException or OperationCanceledException;
     }
 
+    public static bool IsCancellationException(
+        this Exception exception,
+        CancellationToken cancellationToken)
+    {
+        return exception.IsCancellationException() &&
+            cancellationToken.IsCancellationRequested;
+    }
+
     public static bool TryGetCausingException<T>(this Exception exception, out T? exceptionType) where T : Exception
     {
         ArgumentNullException.ThrowIfNull(exception);
