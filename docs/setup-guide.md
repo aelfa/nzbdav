@@ -1,15 +1,16 @@
 # Comprehensive NzbDav Setup Guide
 
-An opinionated, step-by-step walkthrough for setting up NzbDav for maximum performance ("infinite library" style) with Radarr, Sonarr, Plex/Jellyfin, and Stremio.
+An opinionated, step-by-step walkthrough for setting up NzbDav for maximum performance ("infinite library" style) with Radarr, Sonarr, Plex, Emby/Jellyfin, and Stremio.
 
 ## Table of contents
 
 1. [How the "infinite library" works](#how-the-infinite-library-works)
 2. [Phase 1 — Prerequisites](#phase-1--prerequisites)
 3. [Phase 2 — Initial deployment](#phase-2--initial-deployment)
-4. [Phase 3 — The full stack (Rclone sidecar)](#phase-3--the-full-stack-rclone-sidecar)
+4. [Phase 3 — Rclone sidecar (symlink imports only)](#phase-3--rclone-sidecar-symlink-imports-only)
 5. [Phase 4 — Integrations](#phase-4--integrations)
 6. [Phase 5 — Usenet streaming in Stremio (via AIOStreams)](#phase-5--usenet-streaming-in-stremio-via-aiostreams)
+7. [Phase 6 — Operations](#phase-6--operations)
 
 ## How the "infinite library" works
 
@@ -17,13 +18,16 @@ Before configuring anything, it helps to understand the flow.
 
 ### Path A: The automation flow (Radarr/Sonarr + Plex/Jellyfin)
 
-1. **Radarr** sends an `.nzb` file to NzbDav (acting as a download client) to "download".
+1. **Radarr/Sonarr** sends an `.nzb` file to NzbDav (acting as a download client) to "download".
 2. **NzbDav** mounts the NZB onto the WebDAV without actually downloading it.
-3. **NzbDav** tells Radarr the "download" is finished and points to a folder of **symlinks** at `/mnt/remote/nzbdav/completed-symlinks`.
-   * The symlinks always point into the `/mnt/remote/nzbdav/.ids` folder, which contains the streamable content.
-4. **Radarr** imports these symlinks into your library (e.g. `/mnt/media/movies`).
-5. **Plex** reads the symlink → Rclone mount → WebDAV stream → Usenet provider.
-   * **Rclone** makes the NZB contents available to your filesystem by streaming, without using any storage space on your server.
+3. **NzbDav** creates the import artifact selected under `Settings` → `SABnzbd`:
+   * **Symlinks — Plex:** NzbDav exposes symlinks under `/completed-symlinks`. Rclone translates them into filesystem symlinks.
+   * **STRM Files — Emby/Jellyfin:** NzbDav writes small `.strm` files containing authenticated streaming URLs. Rclone is not required.
+4. **Radarr/Sonarr** imports the symlinks or STRM files into your media library (e.g. `/mnt/media/movies`).
+5. Your media server follows the symlink or STRM URL → NzbDav → Usenet provider.
+
+> [!NOTE]
+> NzbDav avoids storing full media files. The symlink workflow can still use a bounded local Rclone VFS cache to smooth seeking and high-bitrate playback.
 
 ### Path B: The on-demand flow (Stremio)
 
@@ -47,6 +51,10 @@ You need a Usenet provider to download content. Consult the [Usenet Providers Wi
 You need Usenet indexers to find content. Consult the [Usenet Indexers Wiki](https://www.reddit.com/r/usenet/wiki/indexers/) for a full list.
 
 Add these to Prowlarr and sync them to your Radarr/Sonarr instances.
+
+### 3. Docker
+
+Install a current Docker Engine and the Docker Compose v2 plugin. The Rclone symlink workflow additionally requires a Linux host with `/dev/fuse` available. The STRM workflow does not require FUSE or Rclone.
 
 ---
 
@@ -75,19 +83,20 @@ services:
     container_name: nzbdav
     restart: unless-stopped
     healthcheck:
-      test: curl -f http://localhost:3000/health || exit 1
-      interval: 1m       # check every minute
-      retries: 3         # restart after 3 consecutive failures
-      start_period: 5s   # give it 5 seconds to boot up
-      timeout: 5s        # if it doesn't answer in 5 seconds, assume it's frozen
+      # Follow the onboarding/login redirect and verify that the UI can reach the backend
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:3000/login > /dev/null || exit 1"]
+      interval: 30s
+      retries: 3         # mark unhealthy after 3 consecutive failures
+      start_period: 30s  # allow migrations and both processes to start
+      timeout: 5s
     ports:
       - "3000:3000"
     environment:
       # Change these IDs to match the user you got from `id` above
-      - PUID=1000
-      - PGID=1000
+      PUID: "1000"
+      PGID: "1000"
       # Set the time zone to match your location
-      - TZ=America/New_York
+      TZ: America/New_York
     volumes:
       - ./config:/config
       - /mnt:/mnt
@@ -98,6 +107,9 @@ Run the container:
 ```bash
 docker compose up -d
 ```
+
+> [!IMPORTANT]
+> Port `3000` serves plain HTTP. If NzbDav will be reachable outside your trusted network, put it behind an HTTPS reverse proxy and do not expose the container port directly to the internet. WebDAV uses Basic authentication, so remote access without TLS exposes credentials. When the proxy runs on the Docker host, bind the port to localhost with `127.0.0.1:3000:3000`.
 
 ### 2. Core configuration
 
@@ -114,7 +126,7 @@ Set your username and password.
 | Host | `news.newshosting.com` (put your provider here) |
 | Port | `563` |
 | Username / Password | Your Usenet credentials |
-| Max Connections | `100` (set to your provider's max allowed) |
+| Max Connections | Your provider's allowed maximum (for example, `20`) |
 | Type | `Pool Connections` |
 | Use SSL | Checked |
 
@@ -122,13 +134,25 @@ Set your username and password.
 
 | Setting | Value |
 |---------|-------|
-| WebDAV Password | Create a password (you will need this for Rclone) |
+| WebDAV User | A dedicated WebDAV username (defaults to `admin`) |
+| WebDAV Password | Create a password (required for Rclone, AIOStreams, and other WebDAV clients) |
 | Enforce Read-Only | Leave checked, unless you'd like to delete files from a terminal |
 
-### 3. Speed tuning (optional)
+### 3. Choose an import strategy
+
+Go to `Settings` → `SABnzbd` → `Import Strategy`:
+
+| Strategy | Best for | Configuration |
+|----------|----------|---------------|
+| **Symlinks — Plex** | Plex, or any setup that needs real filesystem entries | Continue to [Phase 3](#phase-3--rclone-sidecar-symlink-imports-only) and set **Rclone Mount Directory** to `/mnt/remote/nzbdav`. |
+| **STRM Files — Emby/Jellyfin** | Emby/Jellyfin setups that can play `.strm` URLs | Skip Phase 3. Set **Completed Downloads Dir** to a path shared with Radarr/Sonarr, such as `/mnt/completed-downloads`, and set **Base URL** to an NzbDav URL reachable by your media server. |
+
+The example compose file maps host `/mnt` to container `/mnt`, so `/mnt/completed-downloads` and your media library are visible to NzbDav. Map the same host paths into Radarr/Sonarr and your media server at the same container paths.
+
+### 4. Speed tuning (optional)
 
 > [!NOTE]
-> The default **Max Download Connections** setting of `15` works perfectly for most users (handling ~1Gbps). You only need to touch this if you are experiencing speed issues.
+> **Max Download Connections** defaults to the lower of `15` or your total pooled provider connections. This may be enough to saturate a 1Gbps connection, but the result depends on your provider, CPU, and network. Only tune it if you are experiencing speed issues.
 
 You can find the optimal **Max Download Connections** for your network (`Settings` → `WebDAV` → `Max Download Connections`) using the steps below:
 
@@ -150,21 +174,21 @@ You can find the optimal **Max Download Connections** for your network (`Setting
    * Construct a test command like below and run it in another terminal window:
 
      ```bash
-     docker exec nzbdav sh -c "apk add --no-cache wget > /dev/null 2>&1 && timeout 20s wget -O /dev/null --report-speed=bits --progress=bar:force:noscroll 'http://localhost:8080/view/content/Movies/<Movie Folder>/<Movie Name>.mkv?downloadKey=<download-key>'"
+     docker exec nzbdav curl -sS --max-time 20 -o /dev/null -w 'Average: %{speed_download} bytes/s\n' 'http://localhost:8080/view/content/Movies/<Movie Folder>/<Movie Name>.mkv?downloadKey=<download-key>'
      ```
 
-     Note the speed it reports and the CPU usage of the container.
+     The timeout message after 20 seconds is expected. Note the average speed and container CPU usage; multiply bytes/second by eight to compare it with a network speed reported in bits/second.
 
 3. **Adjust and repeat:**
    * Set `Max Download Connections` to `10`. Test speed (e.g. 500Mbps @ 70% CPU).
    * Set `Max Download Connections` to `15`. Test speed (e.g. 1Gbps @ 85% CPU).
-   * **Sweet spot:** stop when the speed plateaus. For most setups, `15` (the default) is the magic number.
+   * **Sweet spot:** stop when the speed plateaus and keep the lowest connection count that reaches it.
 
 ---
 
-## Phase 3 — The full stack (Rclone sidecar)
+## Phase 3 — Rclone sidecar (symlink imports only)
 
-Now we mount the NzbDav WebDAV onto the host filesystem using a sidecar container.
+Skip this phase if you selected **STRM Files — Emby/Jellyfin**. For the symlink strategy, mount the NzbDav WebDAV onto the host filesystem using a sidecar container.
 
 ### 1. Prepare the host directory
 
@@ -197,13 +221,19 @@ Then populate `rclone.conf` with:
 type = webdav
 url = http://nzbdav:3000/
 vendor = other
-user = admin
-pass = <PASTE_OBSCURED_PASSWORD_HERE_WITHOUT_ANGLE_BRACKETS>
+user = your-webdav-user
+pass = your-obscured-password
+```
+
+Rclone's obscured password is not encryption. Restrict access to the config file:
+
+```bash
+chmod 600 rclone.conf
 ```
 
 ### 3. Update `docker-compose.yml`
 
-Add the Rclone sidecar under `services:` in your existing `apps/nzbdav/docker-compose.yml`. Update `PUID`, `PGID`, `TZ`, and volume paths as needed.
+Add the Rclone sidecar under `services:` in your existing `apps/nzbdav/docker-compose.yml`. Update `TZ`, `--uid`, `--gid`, and volume paths as needed.
 
 ```yaml
   nzbdav_rclone:
@@ -211,15 +241,13 @@ Add the Rclone sidecar under `services:` in your existing `apps/nzbdav/docker-co
     container_name: nzbdav_rclone
     restart: unless-stopped
     environment:
-      # Change these IDs to match the user you got from `id`
-      - PUID=1000
-      - PGID=1000
-      # Set the time zone to match your location
-      - TZ=America/New_York
+      TZ: America/New_York
     volumes:
       # Host path : container path : propagation
       - /mnt:/mnt:rshared
-      - ./rclone.conf:/config/rclone/rclone.conf
+      - ./rclone.conf:/config/rclone/rclone.conf:ro
+      # Keep the bounded VFS cache out of the disposable container layer
+      - ./rclone-cache:/cache
     cap_add:
       - SYS_ADMIN
     security_opt:
@@ -233,6 +261,7 @@ Add the Rclone sidecar under `services:` in your existing `apps/nzbdav/docker-co
     # Mount flags optimized for streaming — see "Understanding the flags" below
     command: >
       mount nzbdav: /mnt/remote/nzbdav
+        --cache-dir=/cache
         --uid=1000
         --gid=1000
         --allow-other
@@ -269,14 +298,18 @@ ls -la /mnt/remote/nzbdav
 
 | Flag | Why |
 |------|-----|
+| `--cache-dir=/cache` | **Persistence.** Places the VFS cache on the dedicated bind mount instead of in the container's writable layer. The cache is disposable and does not need to be backed up. |
 | `--links` | **Crucial.** Translates `*.rclonelink` files within the WebDAV into real symlinks on your filesystem. Requires Rclone v1.70.3+. |
 | `--use-cookies` | **Performance.** Without this, Rclone re-authenticates on every single request, causing massive slowdowns. |
 | `--allow-other` | **Permissions.** Ensures other containers (like Radarr/Plex) can see the mounted files. |
-| `--vfs-cache-mode=full` | **Performance.** Enables the full VFS cache, required for seeking and proper file handling. |
+| `--vfs-cache-mode=full` | **Performance.** Enables disk-backed read caching and VFS read-ahead for smoother playback. |
 | `--buffer-size=0M` | **Stability.** Prevents double-caching (RAM + disk). |
 | `--vfs-read-ahead=512M` | **Smooth playback.** Buffers 512MB ahead of the current position to handle high-bitrate spikes without stuttering. |
-| `--vfs-cache-max-size=20G` | **Disk management.** Limits local disk space used by the cache; adjust to your available storage. |
+| `--vfs-cache-max-size=20G` | **Disk management.** Sets a soft limit for the VFS cache; open files can temporarily exceed it. Adjust to your available storage. |
+| `--vfs-cache-max-age=24h` | **Cleanup.** Removes cache entries that have not been accessed for 24 hours. |
 | `--dir-cache-time=20s` | **Responsiveness.** Keeps the directory cache short so new downloads/links appear quickly in the mount. |
+
+The official Rclone image does not use `PUID`/`PGID` environment variables. The `--uid` and `--gid` mount flags control the ownership presented to applications reading the mount.
 
 > [!TIP]
 > These flags are optimized for streaming. Resist the urge to add more: `unnecessary flags = potential pitfalls`. For background on buffer sizing, see this [Rclone forum discussion](https://forum.rclone.org/t/whats-the-suitable-value-to-set-for-buffer-size-with-vfs-read-ahead/39971/4).
@@ -329,11 +362,12 @@ Go to NzbDav `Settings` → `Radarr/Sonarr`.
    * **Remove:**
      * Episode file already imported.
 
-### 3. Configure mount & repairs
+### 3. Configure imports & repairs
 
-1. **Mount directory (`Settings` → `SABnzbd`):**
-   * **Rclone Mount Directory:** `/mnt/remote/nzbdav`
-   * This tells NzbDav where the files physically exist on your host system, so it can pass the correct paths to Radarr/Sonarr.
+1. **Import strategy (`Settings` → `SABnzbd`):**
+   * **Symlinks — Plex:** Set **Rclone Mount Directory** to `/mnt/remote/nzbdav`. This tells NzbDav which completed path to report to Radarr/Sonarr.
+   * **STRM Files — Emby/Jellyfin:** Set **Completed Downloads Dir** to `/mnt/completed-downloads` (or another shared path), and set **Base URL** to an NzbDav URL reachable by your media server.
+   * Whichever strategy you choose, the completed path NzbDav reports must be visible inside Radarr/Sonarr at the exact same path.
 2. **Repairs (`Settings` → `Repairs`):**
    * **Library Directory:** `/mnt/media` — point this to the root folder where your actual movie/TV libraries live on the host.
    * **Enable Background Repairs:** Checked. This lets NzbDav monitor for dead links in your library and trigger redownloads automatically.
@@ -342,7 +376,7 @@ Go to NzbDav `Settings` → `Radarr/Sonarr`.
 
 ## Phase 5 — Usenet streaming in Stremio (via AIOStreams)
 
-You can stream your Usenet content directly in Stremio using [AIOStreams](https://github.com/Viren070/AIOStreams). For more info, check out their [Usenet wiki](https://github.com/Viren070/AIOStreams/wiki/Usenet).
+You can stream your Usenet content directly in Stremio using [AIOStreams](https://github.com/Viren070/AIOStreams). For current upstream guidance, see the [AIOStreams Usenet documentation](https://docs.aiostreams.viren070.me/guides/usenet/).
 
 ### 1. Configure the NzbDav service
 
@@ -353,11 +387,14 @@ In the AIOStreams UI:
 
    | Setting | Value |
    |---------|-------|
-   | NzbDAV URL | `http://nzbdav:3000` (use your public URL if accessing remotely) |
+   | URL | An address AIOStreams can reach: `http://nzbdav:3000` when co-hosted on the same Docker network, or your public HTTPS URL when AIOStreams is remote |
+   | Public URL | Leave blank when using the recommended AIOStreams proxy; otherwise use the public HTTPS URL your player can reach |
    | NzbDAV API Key | From NzbDav `Settings` → `SABnzbd` |
    | NzbDAV WebDAV Username | From NzbDav `Settings` → `WebDAV` |
    | NzbDAV WebDAV Password | From NzbDav `Settings` → `WebDAV` |
-   | AIOStreams Auth Token *(recommended)* | The `AIOSTREAMS_AUTH` value from your self-hosted AIOStreams `.env` file (e.g. `user:pass`) |
+   | AIOStreams Auth Token *(recommended)* | A `username:password` pair from your self-hosted AIOStreams `AIOSTREAMS_AUTH` configuration |
+
+Providing the AIOStreams Auth Token makes AIOStreams proxy the stream. This keeps NzbDav private, avoids exposing WebDAV credentials to the player, and prevents HTTP/HTTPS protocol mismatches. If you do not use the proxy, **Public URL** must be an HTTPS address reachable by every playback device.
 
 ### 2. Configure the Newznab addon
 
@@ -372,12 +409,54 @@ In the AIOStreams UI:
    | Name | `NZBGeek` (or similar) |
    | Newznab URL | Select `NZBgeek` from the dropdown |
    | API Key | Your indexer's API key |
-   | AIOStreams Proxy Auth *(recommended)* | The `AIOSTREAMS_AUTH` value from your self-hosted AIOStreams `.env` file (e.g. `user:pass`) |
-   | Search Mode | **Forced Query** (default is `Auto`) |
-   | Timeout | `5000` ms (default is `7000`) |
+   | AIOStreams Proxy Auth *(optional)* | A `username:password` pair from `AIOSTREAMS_AUTH`; use this when AIOStreams and NzbDav have different public IPs or when you want AIOStreams to proxy and cache NZB grabs |
+   | Search Mode | **Both** if your indexer API allowance permits it; some indexers only return all results through query search |
 
 4. Leave everything else as default and click **Install**.
 
 ### 3. Install to Stremio
 
 Go to the **Save & Install** tab, click **Save**, and then install the addon to Stremio.
+
+---
+
+## Phase 6 — Operations
+
+### Update NzbDav
+
+From the directory containing `docker-compose.yml`:
+
+```bash
+docker compose pull nzbdav
+docker compose up -d nzbdav
+```
+
+If you also want to update the Rclone sidecar:
+
+```bash
+docker compose pull nzbdav_rclone
+docker compose up -d nzbdav_rclone
+```
+
+The `latest` tag follows stable releases. For reproducible deployments, replace `latest` with a specific release tag from the [GitHub releases page](https://github.com/nzbdav/nzbdav/releases).
+
+### Back up NzbDav
+
+Back up the host directory mapped to `/config` (shown as `./config` in this guide). It contains the database, settings, credentials, and persisted application data, so store the backup securely. Stop the container or use a filesystem snapshot to get a consistent backup:
+
+```bash
+docker compose stop nzbdav
+tar -czf nzbdav-config-backup.tar.gz ./config
+docker compose start nzbdav
+```
+
+The `rclone-cache` directory is disposable and should not be included in backups.
+
+### View logs
+
+```bash
+docker compose logs --tail=200 -f nzbdav
+docker compose logs --tail=200 -f nzbdav_rclone
+```
+
+If the Rclone mount fails, first verify that `/dev/fuse` exists on the host, the sidecar has started after NzbDav became healthy, and the WebDAV username/password in `rclone.conf` match `Settings` → `WebDAV`.
