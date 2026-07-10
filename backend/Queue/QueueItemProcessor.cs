@@ -65,7 +65,10 @@ public class QueueItemProcessor(
         {
             try
             {
-                Log.Error(e, "Failed to process queue item {JobName}; retrying in one minute", queueItem.JobName);
+                Log.Error(
+                    "Failed to process queue item {JobName}; retrying in one minute: {Reason}",
+                    queueItem.JobName,
+                    e.Message);
                 dbClient.Ctx.ClearChangeTracker();
                 queueItem.PauseUntil = DateTime.Now.AddMinutes(1);
                 dbClient.Ctx.QueueItems.Attach(queueItem);

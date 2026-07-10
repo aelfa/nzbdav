@@ -2,6 +2,7 @@
 using NWebDav.Server.Helpers;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
+using NzbWebDAV.Extensions;
 using NzbWebDAV.Utils;
 using Serilog;
 
@@ -25,7 +26,7 @@ public class ExceptionMiddleware(RequestDelegate next)
                 await context.Response.WriteAsync("Client closed request.").ConfigureAwait(false);
             }
         }
-        catch (UsenetArticleNotFoundException e)
+        catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException? notFound))
         {
             if (!context.Response.HasStarted)
             {
@@ -34,7 +35,10 @@ public class ExceptionMiddleware(RequestDelegate next)
             }
 
             var filePath = GetRequestFilePath(context);
-            Log.Error(e, "File {FilePath} has missing articles", filePath);
+            Log.Error(
+                "File {FilePath} has missing articles: {Reason}",
+                filePath,
+                notFound!.Message);
         }
         catch (SeekPositionNotFoundException)
         {
@@ -61,12 +65,44 @@ public class ExceptionMiddleware(RequestDelegate next)
 
             var filePath = GetRequestFilePath(context);
             var seekPosition = context.Request.GetRange()?.Start?.ToString() ?? "0";
-            Log.Error(
-                e,
-                "File {FilePath} could not be read from byte position {SeekPosition}",
-                filePath,
-                seekPosition);
+
+            // Known download errors carry a human-readable message;
+            // reserve full stack traces for unexpected failures.
+            if (IsKnownDownloadException(e, out var knownError))
+            {
+                Log.Error(
+                    "File {FilePath} could not be read from byte position {SeekPosition}: {Reason}",
+                    filePath,
+                    seekPosition,
+                    knownError);
+            }
+            else
+            {
+                Log.Error(
+                    e,
+                    "File {FilePath} could not be read from byte position {SeekPosition}",
+                    filePath,
+                    seekPosition);
+            }
         }
+    }
+
+    private static bool IsKnownDownloadException(Exception e, out string message)
+    {
+        if (e.TryGetCausingException<RetryableDownloadException>(out var retryable))
+        {
+            message = retryable!.Message;
+            return true;
+        }
+
+        if (e.TryGetCausingException<NonRetryableDownloadException>(out var nonRetryable))
+        {
+            message = nonRetryable!.Message;
+            return true;
+        }
+
+        message = string.Empty;
+        return false;
     }
 
     private bool IsCausedByAbortedRequest(Exception e, HttpContext context)
