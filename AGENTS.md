@@ -199,12 +199,23 @@ Prefer this rhythm:
 
 Do not accumulate a large uncommitted diff across unrelated areas.
 
+## CI/CD
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | PRs and pushes to `main` | Frontend typecheck + backend build (fast validation) |
+| `pre-release.yml` | Pushes to `main` (except release commits) | Publishes `ghcr.io/.../nzbdav:pre-release` |
+| `release.yml` | Pushes to `main` | release-please versioning; publishes semver tags on release |
+| `docker-build-push.yml` | Reusable (called by pre-release/release) | Multi-arch Docker build with GHA cache |
+
+Docker image builds are shared via the reusable workflow. Branch and dependabot image pipelines were removed — PRs are validated by `ci.yml` instead of publishing throwaway images.
+
 ## Releases
 
-- Merging to `main` triggers **release-please** (`.github/workflows/release.yml`) which opens/updates a release PR and maintains `CHANGELOG.md` + `version.txt`.
+- Merging to `main` triggers **release-please** (`.github/workflows/release.yml`) which maintains `CHANGELOG.md` + `version.txt` and creates GitHub releases.
 - `feat` → minor bump; `fix` → patch bump (pre-1.0 rules in `.release-please-config.json`).
-- Pre-release Docker images (`:pre-release`) build on every `main` push except release commits.
-- Versioned releases publish to `ghcr.io`.
+- Pre-release Docker images (`:pre-release`) build on every `main` push except `chore(main): release` commits.
+- Versioned releases publish to `ghcr.io` with `latest`, exact semver, and rolling `MAJOR.x` / `MAJOR.MINOR.x` tags.
 
 ## Coding guidelines
 

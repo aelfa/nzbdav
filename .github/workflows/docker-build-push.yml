@@ -1,23 +1,36 @@
-name: "Deploy Dependabot Images"
+name: Docker build and push
 
 on:
-  push:
-    branches:
-      - 'dependabot/**'
-
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      tags:
+        description: Image tags (newline-separated)
+        required: true
+        type: string
+      nzbdav_version:
+        description: NZBDAV_VERSION build arg
+        required: true
+        type: string
+      checkout_ref:
+        description: Git ref to build (defaults to triggering commit)
+        required: false
+        type: string
+        default: ""
+    secrets:
+      GITHUB_TOKEN:
+        required: true
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       packages: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.checkout_ref || github.sha }}
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -32,28 +45,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tags and NZBDAV_VERSION
-        id: set_vars
-        run: |
-          RAW_REF="${{ github.ref_name }}"
-          DOCKER_TAG=$(echo "$RAW_REF" \
-            | tr '[:upper:]' '[:lower:]' \
-            | sed -E 's#[^a-z0-9._-]+#-#g' \
-            | sed -E 's#(^-+|-+$)##g')
-          echo "DOCKER_TAG: $DOCKER_TAG"
-          echo "NZBDAV_VERSION=${{ github.ref_name }}" >> $GITHUB_OUTPUT
-          GHCR_REPO="ghcr.io/${{ github.repository }}-dependabot"
-          echo "TAGS=${GHCR_REPO}:${DOCKER_TAG}" >> $GITHUB_OUTPUT
-
       - name: Build and push Docker image (amd64 + arm64)
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.set_vars.outputs.TAGS }}
+          tags: ${{ inputs.tags }}
           build-args: |
-            NZBDAV_VERSION=${{ steps.set_vars.outputs.NZBDAV_VERSION }}
+            NZBDAV_VERSION=${{ inputs.nzbdav_version }}
             REPO_URL=https://github.com/${{ github.repository }}
           secrets: |
             github_token=${{ secrets.GITHUB_TOKEN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
