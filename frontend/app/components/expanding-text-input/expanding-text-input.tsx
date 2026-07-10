@@ -1,6 +1,5 @@
 import { useCallback, useRef, useEffect, type ChangeEvent } from "react";
-import { Form } from "react-bootstrap";
-import styles from "./expanding-text-input.module.css";
+import { Textarea } from "~/components/ui/form";
 import { classNames } from "~/utils/styling";
 
 type ExpandingTextInputProps = {
@@ -62,10 +61,9 @@ export function ExpandingTextInput({
     }, [onChange]);
 
     return (
-        <Form.Control
-            as="textarea"
+        <Textarea
             ref={textareaRef}
-            className={classNames([styles.textarea, className])}
+            className={classNames(['min-h-[2.25rem] w-full resize-none overflow-hidden', className])}
             value={value}
             onChange={handleChange}
             onInput={adjustHeight}

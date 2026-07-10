@@ -1,5 +1,3 @@
-import { Form } from "react-bootstrap";
-import styles from "./migrate-database-files-to-blobstore.module.css";
 import { useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 
@@ -30,9 +28,9 @@ export function MigrateDatabaseFilesToBlobstore({ savedConfig }: ConvertStrmToSy
     }, [setProgress, setConnected]);
 
     return (
-        <div className={styles.task}>
-            <Form.Group>
-                <Form.Text id="blob-task-progress-help" muted>
+        <div className={'space-y-3'}>
+            <div className="space-y-2">
+                <p className="text-xs leading-relaxed text-slate-400" id="blob-task-progress-help">
                     <br />
                     This task runs automatically in the background to optimize the database. No action is required on your part.
                     You can simply track the progress here. For context, the sqlite database used by the backend is slow at reading and writing large data blobs.
@@ -43,8 +41,8 @@ export function MigrateDatabaseFilesToBlobstore({ savedConfig }: ConvertStrmToSy
                     <code>
                         {progress || "The task has not started."}
                     </code>
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
         </div>
     );
 }

@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { Form } from "react-bootstrap";
-import styles from "./multi-checkbox-input.module.css";
+import { Checkbox } from "~/components/ui/form";
 
 type MultiCheckboxInputProps = {
     options: string[];
@@ -29,16 +28,16 @@ export function MultiCheckboxInput({ options, value, onChange }: MultiCheckboxIn
     }
 
     return (
-        <div className={styles.container}>
+        <div className="mt-3 grid grid-cols-1 gap-2 rounded border border-slate-700/70 bg-slate-800/30 p-3 sm:grid-cols-2">
             {options.map(option => (
-                <Form.Check
-                    key={option}
-                    type="checkbox"
-                    id={`multi-checkbox-${option}`}
-                    label={option}
-                    checked={selectedOptions.includes(option)}
-                    onChange={e => onOptionCheckboxChange(option, e.target.checked)}
-                />
+                <label key={option} className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
+                        id={`multi-checkbox-${option}`}
+                        checked={selectedOptions.includes(option)}
+                        onChange={e => onOptionCheckboxChange(option, e.target.checked)}
+                    />
+                    <span>{option}</span>
+                </label>
             ))}
         </div>
     );

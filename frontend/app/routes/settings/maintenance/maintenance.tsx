@@ -1,5 +1,4 @@
-import { Accordion, Form, InputGroup } from "react-bootstrap";
-import styles from "./maintenance.module.css"
+import { Checkbox, Select } from "~/components/ui/form";
 import { RemoveUnlinkedFiles } from "./remove-unlinked-files/remove-unlinked-files";
 import { ConvertStrmToSymlinks } from "./strm-to-symlinks/strm-to-symlinks";
 import { MigrateDatabaseFilesToBlobstore } from "./migrate-database-files-to-blobstore/migrate-database-files-to-blobstore";
@@ -14,32 +13,32 @@ type MaintenanceProps = {
 export function Maintenance({ savedConfig, config, setNewConfig }: MaintenanceProps) {
     return (
         <div>
-            <div className={styles.settingsContainer}>
-                <Form.Group>
-                    <Form.Check
-                        className={styles.input}
-                        type="checkbox"
+            <div className={'space-y-6'}>
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                         id="db-startup-vacuum-enabled-checkbox"
                         aria-describedby="db-startup-vacuum-enabled-help"
-                        label="Perform Database Vacuum on Start"
                         checked={config["db.is-startup-vacuum-enabled"] === "true"}
-                        onChange={e => setNewConfig({ ...config, "db.is-startup-vacuum-enabled": "" + e.target.checked })} />
-                    <Form.Text id="db-startup-vacuum-enabled-help" muted>
+                        onChange={e => setNewConfig({ ...config, "db.is-startup-vacuum-enabled": "" + e.target.checked })}  />
+                    <span>Perform Database Vacuum on Start</span>
+                </label>
+                    <p className="text-xs leading-relaxed text-slate-400" id="db-startup-vacuum-enabled-help">
                         When enabled, nzbdav will run a SQLite VACUUM on the database at every startup. This reclaims unused disk space and can improve query performance over time, but may increase startup time for large databases.
-                    </Form.Text>
-                </Form.Group>
+                    </p>
+                </div>
                 <hr />
-                <Form.Group>
-                    <Form.Check
-                        className={styles.input}
-                        type="checkbox"
+                <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                         id="remove-orphaned-schedule-enabled-checkbox"
                         aria-describedby="remove-orphaned-schedule-help"
-                        label={'Schedule "Remove Orphaned Files" Task Daily'}
                         checked={isScheduledOrphanTaskEnabled(config)}
-                        onChange={e => setNewConfig({ ...config, "maintenance.remove-orphaned-schedule-enabled": "" + e.target.checked })} />
-                    <InputGroup className={styles.input} style={{ marginTop: '15px' }}>
-                        <Form.Select
+                        onChange={e => setNewConfig({ ...config, "maintenance.remove-orphaned-schedule-enabled": "" + e.target.checked })}  />
+                    <span>{'Schedule "Remove Orphaned Files" Task Daily'}</span>
+                </label>
+                    <div className="mt-4 flex w-full gap-2">
+                        <Select
                             disabled={!isScheduledOrphanTaskEnabled(config)}
                             value={getScheduledTime(config).hour}
                             onChange={e => setNewConfig({
@@ -53,8 +52,8 @@ export function Maintenance({ savedConfig, config, setNewConfig }: MaintenancePr
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
                                 <option key={h} value={h}>{h}</option>
                             ))}
-                        </Form.Select>
-                        <Form.Select
+                        </Select>
+                        <Select
                             disabled={!isScheduledOrphanTaskEnabled(config)}
                             value={getScheduledTime(config).minute}
                             onChange={e => setNewConfig({
@@ -69,8 +68,8 @@ export function Maintenance({ savedConfig, config, setNewConfig }: MaintenancePr
                             <option value={15}>15</option>
                             <option value={30}>30</option>
                             <option value={45}>45</option>
-                        </Form.Select>
-                        <Form.Select
+                        </Select>
+                        <Select
                             disabled={!isScheduledOrphanTaskEnabled(config)}
                             value={getScheduledTime(config).period}
                             onChange={e => setNewConfig({
@@ -83,42 +82,42 @@ export function Maintenance({ savedConfig, config, setNewConfig }: MaintenancePr
                             })}>
                             <option value="am">am</option>
                             <option value="pm">pm</option>
-                        </Form.Select>
-                    </InputGroup>
-                    <Form.Text id="remove-orphaned-schedule-help" muted>
+                        </Select>
+                    </div>
+                    <p className="text-xs leading-relaxed text-slate-400" id="remove-orphaned-schedule-help">
                         When enabled, the "Remove Orphaned Files" task will run every day at the specified time.
                         You may need to set the TZ env variable to ensure the correct timezone.
-                    </Form.Text>
-                </Form.Group>
+                    </p>
+                </div>
             </div>
-            <div className={styles.tasksContainer}>
+            <div className={'mt-6 space-y-3'}>
                 <hr />
-                <Accordion>
-                    <Accordion.Item className={styles.accordionItem} eventKey="remove-unlinked-files">
-                        <Accordion.Header className={styles.accordionHeader}>
+                <div className="space-y-3">
+                    <details className={'overflow-hidden rounded border border-slate-700/70'}>
+                        <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-white hover:bg-white/5">
                             Remove Orphaned Files
-                        </Accordion.Header>
-                        <Accordion.Body className={styles.accordionBody}>
+                        </summary>
+                        <div className={'border-t border-slate-700/70 p-4'}>
                             <RemoveUnlinkedFiles savedConfig={savedConfig} />
-                        </Accordion.Body>
-                    </Accordion.Item>
-                    <Accordion.Item className={styles.accordionItem} eventKey="strm-to-symlinks">
-                        <Accordion.Header className={styles.accordionHeader}>
+                        </div>
+                    </details>
+                    <details className={'overflow-hidden rounded border border-slate-700/70'}>
+                        <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-white hover:bg-white/5">
                             Convert Strm Files to Symlnks
-                        </Accordion.Header>
-                        <Accordion.Body className={styles.accordionBody}>
+                        </summary>
+                        <div className={'border-t border-slate-700/70 p-4'}>
                             <ConvertStrmToSymlinks savedConfig={savedConfig} />
-                        </Accordion.Body>
-                    </Accordion.Item>
-                    <Accordion.Item className={styles.accordionItem} eventKey="migrate-database-files-to-blobstore">
-                        <Accordion.Header className={styles.accordionHeader}>
+                        </div>
+                    </details>
+                    <details className={'overflow-hidden rounded border border-slate-700/70'}>
+                        <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-white hover:bg-white/5">
                             Migrate Large Database Blobs to Blobstore
-                        </Accordion.Header>
-                        <Accordion.Body className={styles.accordionBody}>
+                        </summary>
+                        <div className={'border-t border-slate-700/70 p-4'}>
                             <MigrateDatabaseFilesToBlobstore savedConfig={savedConfig} />
-                        </Accordion.Body>
-                    </Accordion.Item>
-                </Accordion>
+                        </div>
+                    </details>
+                </div>
             </div>
         </div>
     );

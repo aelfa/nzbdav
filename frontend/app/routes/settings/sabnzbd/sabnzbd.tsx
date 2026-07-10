@@ -1,9 +1,9 @@
-import { Button, Form, InputGroup } from "react-bootstrap";
+import { Button } from "~/components/ui/button";
+import { Checkbox, Input, Select } from "~/components/ui/form";
 import { useCallback, useEffect, useMemo, useRef, type Dispatch, type SetStateAction } from "react";
 import { TagInput } from "~/components/tag-input/tag-input";
 import { MultiCheckboxInput } from "~/components/multi-checkbox-input/multi-checkbox-input";
 import { ExpandingTextInput } from "~/components/expanding-text-input/expanding-text-input";
-import styles from "./sabnzbd.module.css"
 
 type SabnzbdSettingsProps = {
     config: Record<string, string>
@@ -21,11 +21,11 @@ export function SabnzbdSettings({ config, setNewConfig, appVersion }: SabnzbdSet
         useEnsureArticleExistanceSetting(config, setNewConfig);
 
     return (
-        <div className={styles.container}>
-            <Form.Group>
-                <Form.Label htmlFor="api-key-input">API Key</Form.Label>
-                <InputGroup className={styles.input}>
-                    <Form.Control
+        <div className={'space-y-6'}>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="api-key-input">API Key</label>
+                <div className="flex w-full">
+                    <Input
                         type="text"
                         id="api-key-input"
                         aria-describedby="api-key-help"
@@ -34,223 +34,222 @@ export function SabnzbdSettings({ config, setNewConfig, appVersion }: SabnzbdSet
                     <Button variant="primary" onClick={onRefreshApiKey}>
                         Refresh
                     </Button>
-                </InputGroup>
-                <Form.Text id="api-key-help" muted>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-400" id="api-key-help">
                     Use this API key when configuring your download client in Radarr or Sonarr.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="categories-input">Categories</Form.Label>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="categories-input">Categories</label>
                 <TagInput
-                    className={!isValidCategories(config["api.categories"]) ? `${styles.error} ${styles.input}` : styles.input}
+                    className={!isValidCategories(config["api.categories"]) ? `${'border-red-500 focus:border-red-500'} ${'w-full'}` : 'w-full'}
                     id="categories-input"
                     aria-describedby="categories-help"
                     value={config["api.categories"]}
                     placeholder="tv, movies, audio, software"
                     onChange={value => setNewConfig({ ...config, "api.categories": value })} />
-                <Form.Text id="categories-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="categories-help">
                     The complete list of categories for organizing imported nzbs. Only letters, numbers, and dashes are allowed.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="manual-category-input">Manual Upload Category</Form.Label>
-                <Form.Control
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="manual-category-input">Manual Upload Category</label>
+                <Input
+                    className={'w-full'}
                     type="text"
                     id="manual-category-input"
                     aria-describedby="manual-category-help"
                     value={config["api.manual-category"]}
                     placeholder="uncategorized"
                     onChange={e => setNewConfig({ ...config, "api.manual-category": e.target.value })} />
-                <Form.Text id="manual-category-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="manual-category-help">
                     The category to use for manual uploads through the Queue page on the UI.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="import-strategy-input">Import Strategy</Form.Label>
-                <Form.Select
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="import-strategy-input">Import Strategy</label>
+                <Select
+                    className={'w-full'}
                     value={config["api.import-strategy"]}
                     onChange={e => setNewConfig({ ...config, "api.import-strategy": e.target.value })}
                 >
                     <option value="symlinks">Symlinks — Plex</option>
                     <option value="strm">STRM Files — Emby/Jellyfin</option>
-                </Form.Select>
-                <Form.Text id="import-strategy-help" muted>
+                </Select>
+                <p className="text-xs leading-relaxed text-slate-400" id="import-strategy-help">
                     If you need to be able to stream from Plex, you will need to configure rclone and should select the `Symlinks` option here. If you only need to stream through Emby or Jellyfin, then you can skip rclone altogether and select the `STRM Files` option.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             {/* <hr /> */}
             {config["api.import-strategy"] === 'symlinks' &&
-                <Form.Group className={styles.subGroup}>
-                    <Form.Label htmlFor="mount-dir-input">Rclone Mount Directory</Form.Label>
-                    <Form.Control
-                        className={styles.input}
+                <div className={'ml-4 space-y-2 border-l border-slate-700 pl-4'}>
+                    <label className="block text-sm font-medium text-slate-200" htmlFor="mount-dir-input">Rclone Mount Directory</label>
+                    <Input
+                        className={'w-full'}
                         type="text"
                         id="mount-dir-input"
                         aria-describedby="mount-dir-help"
                         placeholder="/mnt/nzbdav"
                         value={config["rclone.mount-dir"]}
                         onChange={e => setNewConfig({ ...config, "rclone.mount-dir": e.target.value })} />
-                    <Form.Text id="mount-dir-help" muted>
+                    <p className="text-xs leading-relaxed text-slate-400" id="mount-dir-help">
                         The location at which you've mounted (or will mount) the webdav root, through Rclone. This is used to tell Radarr / Sonarr where to look for completed "downloads."
-                    </Form.Text>
-                </Form.Group>
+                    </p>
+                </div>
             }
             {config["api.import-strategy"] === 'strm' && <>
-                <Form.Group className={styles.subGroup}>
-                    <Form.Label htmlFor="completed-downloads-dir-input">Completed Downloads Dir</Form.Label>
-                    <Form.Control
-                        className={styles.input}
+                <div className={'ml-4 space-y-2 border-l border-slate-700 pl-4'}>
+                    <label className="block text-sm font-medium text-slate-200" htmlFor="completed-downloads-dir-input">Completed Downloads Dir</label>
+                    <Input
+                        className={'w-full'}
                         type="text"
                         id="completed-downloads-dir-input"
                         aria-describedby="completed-downloads-dir-help"
                         placeholder="/data/completed-downloads"
                         value={config["api.completed-downloads-dir"]}
                         onChange={e => setNewConfig({ ...config, "api.completed-downloads-dir": e.target.value })} />
-                    <Form.Text id="completed-downloads-dir-help" muted>
+                    <p className="text-xs leading-relaxed text-slate-400" id="completed-downloads-dir-help">
                         This is used to tell Radarr / Sonarr where to look for completed "downloads." Make sure this path is also visible to your Radarr / Sonarr containers. The "downloads" placed in this folder will all be *.strm files that point to nzbdav for streaming.
-                    </Form.Text>
-                </Form.Group>
-                <Form.Group className={styles.subGroup}>
-                    <Form.Label htmlFor="base-url-input">Base URL</Form.Label>
-                    <Form.Control
-                        className={styles.input}
+                    </p>
+                </div>
+                <div className={'ml-4 space-y-2 border-l border-slate-700 pl-4'}>
+                    <label className="block text-sm font-medium text-slate-200" htmlFor="base-url-input">Base URL</label>
+                    <Input
+                        className={'w-full'}
                         type="text"
                         id="base-url-input"
                         aria-describedby="base-url-help"
                         placeholder="http://localhost:3000"
                         value={config["general.base-url"]}
                         onChange={e => setNewConfig({ ...config, "general.base-url": e.target.value })} />
-                    <Form.Text id="base-url-help" muted>
+                    <p className="text-xs leading-relaxed text-slate-400" id="base-url-help">
                         What is the base URL at which you access nzbdav? Make sure that Emby/Jellyfin can access this url. This is the URL they will connect to for streaming. All *.strm files will point to this URL.
-                    </Form.Text>
-                </Form.Group>
+                    </p>
+                </div>
             </>}
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="ignored-files-input">Ignored Files</Form.Label>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="ignored-files-input">Ignored Files</label>
                 <TagInput
-                    className={styles.input}
+                    className={'w-full'}
                     id="ignored-files-input"
                     aria-describedby="ignored-files-help"
                     placeholder="*.nfo, *.par2, *.sfv, *sample.mkv"
                     value={config["api.download-file-blocklist"]}
                     onChange={value => setNewConfig({ ...config, "api.download-file-blocklist": value })} />
-                <Form.Text id="ignored-files-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="ignored-files-help">
                     Files that match these patterns will be ignored and not mounted onto the webdav when processing an nzb. Wildcards (*) are supported.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="duplicate-nzb-behavior-input">Behavior for Duplicate NZBs</Form.Label>
-                <Form.Select
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="duplicate-nzb-behavior-input">Behavior for Duplicate NZBs</label>
+                <Select
+                    className={'w-full'}
                     aria-describedby="duplicate-nzb-behavior-help"
                     value={config["api.duplicate-nzb-behavior"]}
                     onChange={e => setNewConfig({ ...config, "api.duplicate-nzb-behavior": e.target.value })}
                 >
                     <option value="increment">Download again with suffix (2)</option>
                     <option value="mark-failed">Mark the download as failed</option>
-                </Form.Select>
-                <Form.Text id="duplicate-nzb-behavior-help" muted>
+                </Select>
+                <p className="text-xs leading-relaxed text-slate-400" id="duplicate-nzb-behavior-help">
                     When an NZB is added, a new folder is created on the webdav. What should be done when the download folder for an NZB already exists?
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="user-agent-input">User Agent</Form.Label>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="user-agent-input">User Agent</label>
                 <ExpandingTextInput
-                    className={styles.input}
+                    className={'w-full'}
                     id="user-agent-input"
                     aria-describedby="user-agent-help"
                     value={config["api.user-agent"]}
                     placeholder={`nzbdav/${appVersion}`}
                     onChange={value => setNewConfig({ ...config, "api.user-agent": value })} />
-                <Form.Text id="user-agent-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="user-agent-help">
                     The user-agent used by the&nbsp;
                     <a href="https://sabnzbd.org/wiki/configuration/4.5/api#addurl">addurl</a> api
                     for fetching nzb files.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="ensure-importable-video-checkbox"
                     aria-describedby="ensure-importable-video-help"
-                    label={`Fail downloads for nzbs without video content`}
                     checked={config["api.ensure-importable-video"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "api.ensure-importable-video": "" + e.target.checked })} />
-                <Form.Text id="ensure-importable-video-help" muted>
+                    onChange={e => setNewConfig({ ...config, "api.ensure-importable-video": "" + e.target.checked })}  />
+                    <span>{`Fail downloads for nzbs without video content`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="ensure-importable-video-help">
                     Whether to mark downloads as `failed` when no single video file is found inside the nzb. This will force Radarr / Sonarr to automatically look for a new nzb.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="ensure-article-existence-checkbox"
                     aria-describedby="ensure-article-existence-help"
-                    label={`Perform article health check during downloads`}
                     ref={ensureArticleExistanceSetting.masterCheckboxRef}
                     checked={!ensureArticleExistanceSetting.areNoneSelected}
-                    onChange={e => ensureArticleExistanceSetting.onMasterCheckboxChange(e.target.checked)} />
-                <Form.Text id="ensure-article-existence-help" muted>
+                    onChange={e => ensureArticleExistanceSetting.onMasterCheckboxChange(e.target.checked)}  />
+                    <span>{`Perform article health check during downloads`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="ensure-article-existence-help">
                     Whether to check for the existence of all articles within an NZB during queue processing. This process may be slow.
-                </Form.Text>
+                </p>
                 <MultiCheckboxInput
                     options={ensureArticleExistanceSetting.categories}
                     value={config["api.ensure-article-existence-categories"] ?? ""}
                     onChange={value => setNewConfig({ ...config, "api.ensure-article-existence-categories": value })}
                 />
-            </Form.Group>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="ignore-history-limit-checkbox"
                     aria-describedby="ignore-history-limit-help"
-                    label={`Always send full History to Radarr/Sonarr`}
                     checked={config["api.ignore-history-limit"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "api.ignore-history-limit": "" + e.target.checked })} />
-                <Form.Text id="ignore-history-limit-help" muted>
+                    onChange={e => setNewConfig({ ...config, "api.ignore-history-limit": "" + e.target.checked })}  />
+                    <span>{`Always send full History to Radarr/Sonarr`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="ignore-history-limit-help">
                     When enabled, this will ignore the History limit sent by radarr/sonarr and always reply with all History items.&nbsp;
                     <a href="https://github.com/Sonarr/Sonarr/issues/5452">See here</a>.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="nzb-backup-enabled-checkbox"
                     aria-describedby="nzb-backup-location-help"
-                    label={`Save backup copies of incoming NZBs`}
                     checked={config["api.nzb-backup-enabled"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "api.nzb-backup-enabled": "" + e.target.checked })} />
-                <Form.Control
-                    className={styles.input}
-                    style={{ marginTop: '15px' }}
+                    onChange={e => setNewConfig({ ...config, "api.nzb-backup-enabled": "" + e.target.checked })}  />
+                    <span>{`Save backup copies of incoming NZBs`}</span>
+                </label>
+                <Input
+                    className="mt-4 w-full"
                     type="text"
                     id="nzb-backup-location-input"
                     aria-describedby="nzb-backup-location-help"
                     placeholder="/data/nzb-backups"
                     value={config["api.nzb-backup-location"]}
                     disabled={config["api.nzb-backup-enabled"] !== "true"}
-                    isInvalid={!isValidNzbBackupLocation(config)}
+                    aria-invalid={!isValidNzbBackupLocation(config)}
                     onChange={e => setNewConfig({ ...config, "api.nzb-backup-location": e.target.value })} />
-                <Form.Text id="nzb-backup-location-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="nzb-backup-location-help">
                     When enabled, a copy of each incoming NZB will be saved to this directory, organized by category.
                     The directory will be created if it doesn't already exist.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
         </div>
     );
 }

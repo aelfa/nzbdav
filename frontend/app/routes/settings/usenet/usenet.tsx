@@ -1,6 +1,6 @@
-import styles from "./usenet.module.css"
+import { Button } from "~/components/ui/button";
+import { Icon } from "~/components/ui/icon";
 import { type Dispatch, type SetStateAction, useState, useCallback, useEffect, useMemo } from "react";
-import { Button } from "react-bootstrap";
 import { receiveMessage } from "~/utils/websocket-util";
 import { isMaskedSecret } from "~/utils/config-mask";
 
@@ -136,134 +136,105 @@ export function UsenetSettings({ config, setNewConfig }: UsenetSettingsProps) {
 
     // view
     return (
-        <div className={styles.container}>
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
+        <div className={'space-y-6'}>
+            <div className={'space-y-4'}>
+                <div className={'flex items-center justify-between text-lg font-semibold text-white'}>
                     <div>Usenet Providers</div>
-                    <Button variant="primary" size="sm" onClick={handleAddProvider}>
+                    <Button variant="primary" size="small" onClick={handleAddProvider}>
                         Add
                     </Button>
                 </div>
                 {providerConfig.Providers.length === 0 ? (
-                    <p className={styles.alertMessage}>
+                    <p className={'rounded border border-slate-700/70 bg-slate-800/40 px-3 py-2 text-sm text-slate-400'}>
                         No Usenet providers configured.
                         Click on the "Add" button to get started.
                     </p>
                 ) : (
-                    <div className={styles["providers-grid"]}>
+                    <div className={'grid grid-cols-1 gap-4 lg:grid-cols-2'}>
                         {providerConfig.Providers.map((provider, index) => (
-                            <div key={index} className={styles["provider-card"]}>
-                                <div className={styles["provider-card-inner"]}>
-                                    <div className={styles["provider-header"]}>
-                                        <div className={styles["provider-header-content"]}>
-                                            <div className={styles["provider-host"]}>
+                            <div key={index} className={'rounded-lg bg-gray-800 shadow-md'}>
+                                <div className={'p-3'}>
+                                    <div className={'flex items-start justify-between gap-3'}>
+                                        <div className={'min-w-0'}>
+                                            <div className={'truncate font-semibold text-white'}>
                                                 {provider.Host}
                                             </div>
-                                            <div className={styles["provider-port"]}>
+                                            <div className={'mt-1 text-xs text-slate-400'}>
                                                 Port {provider.Port}
                                             </div>
                                         </div>
-                                        <div className={styles["provider-header-actions"]}>
+                                        <div className={'flex gap-1'}>
                                             <button
-                                                className={styles["header-action-button"]}
+                                                className={'rounded bg-white/10 p-1.5 text-slate-300 hover:bg-white/20'}
                                                 onClick={() => handleEditProvider(index)}
                                                 title="Edit Provider"
                                             >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                </svg>
+                                                <Icon name="edit" className="!text-[18px]" />
                                             </button>
                                             <button
-                                                className={`${styles["header-action-button"]} ${styles["delete"]}`}
+                                                className={`${'rounded bg-white/10 p-1.5 text-slate-300 hover:bg-white/20'} ${'hover:text-red-400'}`}
                                                 onClick={() => handleDeleteProvider(index)}
                                                 title="Delete Provider"
                                             >
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                    <polyline points="3 6 5 6 21 6" />
-                                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                                </svg>
+                                                <Icon name="delete" className="!text-[18px]" />
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className={styles["provider-details"]}>
-                                        <div className={styles["provider-detail-row"]}>
+                                    <div className={'mt-4 border-t border-slate-700/70 pt-3'}>
+                                        <div className={'grid grid-cols-1 gap-3 sm:grid-cols-2'}>
 
-                                            <div className={styles["provider-detail-item"]}>
-                                                <div className={styles["provider-detail-icon"]}>
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                                                        <circle cx="12" cy="7" r="4" />
-                                                    </svg>
+                                            <div className={'relative flex min-w-0 items-center gap-2'}>
+                                                <div className={'text-blue-400'}>
+                                                    <Icon name="person" className="!text-[18px]" />
                                                 </div>
-                                                <div className={styles["provider-detail-content"]}>
-                                                    <span className={styles["provider-detail-label"]}>Username</span>
-                                                    <span className={styles["provider-detail-value"]}>{provider.User}</span>
+                                                <div className={'flex min-w-0 flex-col'}>
+                                                    <span className={'text-[11px] uppercase tracking-wide text-slate-500'}>Username</span>
+                                                    <span className={'truncate text-sm text-slate-200'}>{provider.User}</span>
                                                 </div>
                                             </div>
 
-                                            <div className={styles["provider-detail-item"]}>
+                                            <div className={'relative flex min-w-0 items-center gap-2'}>
                                                 {connections[index] && (
-                                                    <div className={styles["connection-bar"]}>
+                                                    <div className={'absolute inset-x-0 -top-1 h-1 overflow-hidden rounded bg-slate-700'}>
                                                         <div
-                                                            className={styles["connection-bar-live"]}
+                                                            className={'absolute inset-y-0 left-0 bg-emerald-700'}
                                                             style={{ width: `${100 * (connections[index].live / connections[index].max)}%` }}
                                                         />
                                                         <div
-                                                            className={styles["connection-bar-active"]}
+                                                            className={'absolute inset-y-0 left-0 bg-emerald-400'}
                                                             style={{ width: `${100 * (connections[index].active / connections[index].max)}%` }}
                                                         />
                                                     </div>
                                                 )}
-                                                <div className={styles["provider-detail-icon"]}>
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                                    </svg>
+                                                <div className={'text-blue-400'}>
+                                                    <Icon name="hub" className="!text-[18px]" />
                                                 </div>
-                                                <div className={styles["provider-detail-content"]}>
-                                                    <span className={styles["provider-detail-label"]}>Max Connections</span>
-                                                    <span className={styles["provider-detail-value"]}>{provider.MaxConnections}</span>
+                                                <div className={'flex min-w-0 flex-col'}>
+                                                    <span className={'text-[11px] uppercase tracking-wide text-slate-500'}>Max Connections</span>
+                                                    <span className={'truncate text-sm text-slate-200'}>{provider.MaxConnections}</span>
                                                 </div>
                                             </div>
 
-                                            <div className={styles["provider-detail-item"]}>
-                                                <div className={styles["provider-detail-icon"]}>
-                                                    {provider.UseSsl ? (
-                                                        // Closed lock icon
-                                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <rect x="5" y="11" width="14" height="11" rx="2" ry="2" />
-                                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                                            <circle cx="12" cy="16" r="1" fill="currentColor" />
-                                                        </svg>
-                                                    ) : (
-                                                        // Open lock icon
-                                                        <svg width="13" height="13" viewBox="0 -2 24 26" fill="none" stroke="currentColor" strokeWidth="2">
-                                                            <rect x="5" y="11" width="14" height="11" rx="2" ry="2" />
-                                                            <path d="M7 11V4a5 5 0 0 1 9.9 1" />
-                                                            <circle cx="12" cy="16" r="1" fill="currentColor" />
-                                                        </svg>
-                                                    )}
+                                            <div className={'relative flex min-w-0 items-center gap-2'}>
+                                                <div className={'text-blue-400'}>
+                                                    <Icon name={provider.UseSsl ? "lock" : "lock_open"} className="!text-[18px]" />
                                                 </div>
-                                                <div className={styles["provider-detail-content"]}>
-                                                    <span className={styles["provider-detail-label"]}>Security</span>
-                                                    <span className={styles["provider-detail-value"]}>
+                                                <div className={'flex min-w-0 flex-col'}>
+                                                    <span className={'text-[11px] uppercase tracking-wide text-slate-500'}>Security</span>
+                                                    <span className={'truncate text-sm text-slate-200'}>
                                                         {provider.UseSsl ? "SSL Enabled" : "No SSL"}
                                                     </span>
                                                 </div>
                                             </div>
 
-                                            <div className={styles["provider-detail-item"]}>
-                                                <div className={styles["provider-detail-icon"]}>
-                                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.3">
-                                                        <text x="12" y="9" fontSize="10" fill="currentColor" textAnchor="middle" fontWeight="600">1</text>
-                                                        <text x="6" y="21" fontSize="10" fill="currentColor" textAnchor="middle" fontWeight="600">2</text>
-                                                        <text x="18" y="21" fontSize="10" fill="currentColor" textAnchor="middle" fontWeight="600">3</text>
-                                                    </svg>
+                                            <div className={'relative flex min-w-0 items-center gap-2'}>
+                                                <div className={'text-blue-400'}>
+                                                    <Icon name="account_tree" className="!text-[18px]" />
                                                 </div>
-                                                <div className={styles["provider-detail-content"]}>
-                                                    <span className={styles["provider-detail-label"]}>Behavior</span>
-                                                    <span className={styles["provider-detail-value"]}>{PROVIDER_TYPE_LABELS[provider.Type]}</span>
+                                                <div className={'flex min-w-0 flex-col'}>
+                                                    <span className={'text-[11px] uppercase tracking-wide text-slate-500'}>Behavior</span>
+                                                    <span className={'truncate text-sm text-slate-200'}>{PROVIDER_TYPE_LABELS[provider.Type]}</span>
                                                 </div>
                                             </div>
 
@@ -401,27 +372,27 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
     if (!show) return null;
 
     return (
-        <div className={styles["modal-overlay"]} onClick={handleOverlayClick}>
-            <div className={styles["modal-container"]}>
-                <div className={styles["modal-header"]}>
-                    <h2 className={styles["modal-title"]}>
+        <div className={'fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 p-4'} onClick={handleOverlayClick}>
+            <div className={'max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded border border-slate-700 bg-slate-900 shadow-xl'}>
+                <div className={'flex items-center justify-between border-b border-slate-700 px-4 py-3'}>
+                    <h2 className={'text-lg font-semibold text-white'}>
                         {provider ? "Edit Provider" : "Add Provider"}
                     </h2>
-                    <button className={styles["modal-close"]} onClick={onClose} aria-label="Close">
-                        ×
+                    <button className={'rounded p-1 text-slate-300 hover:bg-white/10 hover:text-white'} onClick={onClose} aria-label="Close">
+                        <Icon name="close" className="!text-[20px]" />
                     </button>
                 </div>
 
-                <div className={styles["modal-body"]}>
-                    <div className={styles["form-grid"]}>
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-host" className={styles["form-label"]}>
+                <div className={'p-4'}>
+                    <div className={'grid grid-cols-1 gap-4 sm:grid-cols-2'}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-host" className={'block text-sm font-medium text-slate-200'}>
                                 Host
                             </label>
                             <input
                                 type="text"
                                 id="provider-host"
-                                className={styles["form-input"]}
+                                className={'form-input w-full'}
                                 placeholder="news.provider.com"
                                 value={host}
                                 onChange={(e) => {
@@ -431,14 +402,14 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                             />
                         </div>
 
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-port" className={styles["form-label"]}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-port" className={'block text-sm font-medium text-slate-200'}>
                                 Port
                             </label>
                             <input
                                 type="text"
                                 id="provider-port"
-                                className={`${styles["form-input"]} ${!isPositiveInteger(port) && port !== "" ? styles.error : ""}`}
+                                className={`${'form-input w-full'} ${!isPositiveInteger(port) && port !== "" ? 'border-red-500 focus:border-red-500' : ""}`}
                                 placeholder="563"
                                 value={port}
                                 onChange={(e) => {
@@ -448,14 +419,14 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                             />
                         </div>
 
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-user" className={styles["form-label"]}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-user" className={'block text-sm font-medium text-slate-200'}>
                                 Username
                             </label>
                             <input
                                 type="text"
                                 id="provider-user"
-                                className={styles["form-input"]}
+                                className={'form-input w-full'}
                                 placeholder="username"
                                 value={user}
                                 onChange={(e) => {
@@ -465,14 +436,14 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                             />
                         </div>
 
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-pass" className={styles["form-label"]}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-pass" className={'block text-sm font-medium text-slate-200'}>
                                 Password
                             </label>
                             <input
                                 type="password"
                                 id="provider-pass"
-                                className={styles["form-input"]}
+                                className={'form-input w-full'}
                                 placeholder="password"
                                 value={pass}
                                 onChange={(e) => {
@@ -482,27 +453,27 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                             />
                         </div>
 
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-max-connections" className={styles["form-label"]}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-max-connections" className={'block text-sm font-medium text-slate-200'}>
                                 Max Connections
                             </label>
                             <input
                                 type="text"
                                 id="provider-max-connections"
-                                className={`${styles["form-input"]} ${!isPositiveInteger(maxConnections) && maxConnections !== "" ? styles.error : ""}`}
+                                className={`${'form-input w-full'} ${!isPositiveInteger(maxConnections) && maxConnections !== "" ? 'border-red-500 focus:border-red-500' : ""}`}
                                 placeholder="20"
                                 value={maxConnections}
                                 onChange={(e) => setMaxConnections(e.target.value)}
                             />
                         </div>
 
-                        <div className={styles["form-group"]}>
-                            <label htmlFor="provider-type" className={styles["form-label"]}>
+                        <div className={'space-y-2'}>
+                            <label htmlFor="provider-type" className={'block text-sm font-medium text-slate-200'}>
                                 Type
                             </label>
                             <select
                                 id="provider-type"
-                                className={styles["form-select"]}
+                                className={'form-select w-full'}
                                 value={type}
                                 onChange={(e) => setType(parseInt(e.target.value, 10) as ProviderType)}
                             >
@@ -512,19 +483,19 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                             </select>
                         </div>
 
-                        <div className={`${styles["form-group"]} ${styles["full-width"]}`}>
-                            <div className={styles["form-checkbox-wrapper"]}>
+                        <div className={`${'space-y-2'} ${'sm:col-span-2'}`}>
+                            <div className={'flex items-center gap-2'}>
                                 <input
                                     type="checkbox"
                                     id="provider-ssl"
-                                    className={styles["form-checkbox"]}
+                                    className={'h-4 w-4 rounded border-slate-600 bg-slate-950 accent-emerald-400'}
                                     checked={useSsl}
                                     onChange={(e) => {
                                         setUseSsl(e.target.checked);
                                         setConnectionTested(false);
                                     }}
                                 />
-                                <label htmlFor="provider-ssl" className={styles["form-checkbox-label"]}>
+                                <label htmlFor="provider-ssl" className={'text-sm text-slate-300'}>
                                     Use SSL
                                 </label>
                             </div>
@@ -532,21 +503,21 @@ function ProviderModal({ show, provider, onClose, onSave }: ProviderModalProps) 
                     </div>
 
                     {testError && (
-                        <div className={`${styles.alert} ${styles["alert-danger"]}`} style={{ marginTop: '16px' }}>
+                        <div role="alert" className="mt-4 rounded border border-red-600/50 bg-red-500/10 px-3 py-2 text-xs text-red-200">
                             {testError}
                         </div>
                     )}
 
                     {connectionTested && (
-                        <div className={`${styles.alert} ${styles["alert-success"]}`} style={{ marginTop: '16px' }}>
+                        <div role="status" className="mt-4 rounded border border-emerald-600/50 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200">
                             Connection test successful!
                         </div>
                     )}
                 </div>
 
-                <div className={styles["modal-footer"]}>
-                    <div className={styles["modal-footer-left"]}></div>
-                    <div className={styles["modal-footer-right"]}>
+                <div className={'flex justify-end border-t border-slate-700 px-4 py-3'}>
+                    <div className={'hidden'}></div>
+                    <div className={'flex gap-2'}>
                         <Button variant="secondary" onClick={onClose}>
                             Cancel
                         </Button>

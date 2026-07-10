@@ -1,5 +1,7 @@
-import { Button, Form, InputGroup, Spinner } from "react-bootstrap";
-import styles from "./rclone.module.css"
+import { Button } from "~/components/ui/button";
+import { Spinner } from "~/components/ui/feedback";
+import { Checkbox, Input } from "~/components/ui/form";
+import { Icon } from "~/components/ui/icon";
 import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from "react";
 import { isMaskedSecret } from "~/utils/config-mask";
 
@@ -47,25 +49,25 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
     }, [config]);
 
     return (
-        <div className={styles.container}>
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+        <div className={'space-y-6'}>
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="rclone-rc-enabled-checkbox"
                     aria-describedby="rclone-rc-enabled-help"
-                    label={`Enable Rclone RC Server Notifications`}
                     checked={config["rclone.rc-enabled"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "rclone.rc-enabled": "" + e.target.checked })} />
-                <Form.Text id="rclone-rc-enabled-help" muted>
+                    onChange={e => setNewConfig({ ...config, "rclone.rc-enabled": "" + e.target.checked })}  />
+                    <span>{`Enable Rclone RC Server Notifications`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="rclone-rc-enabled-help">
                     When enabled, nzbdav will automatically notify your rclone mount via the RC API whenever files are added or removed on the webdav. This allows setting a high dir-cache-time setting on Rclone.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="rclone-host-input">Rclone Server Host</Form.Label>
-                <InputGroup className={styles.input}>
-                    <Form.Control
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="rclone-host-input">Rclone Server Host</label>
+                <div className="flex w-full">
+                    <Input
                         type="text"
                         id="rclone-host-input"
                         aria-describedby="rclone-host-help"
@@ -78,54 +80,54 @@ export function RcloneSettings({ config, setNewConfig }: RcloneSettingsProps) {
                                 connectionState === 'error' ? 'danger' : 'secondary'}
                             onClick={testConnection}
                             disabled={connectionState === 'testing'}
-                            className={styles.testButton}
+                            className={'shrink-0'}
                         >
                             {
                                 connectionState === 'testing' ? (
-                                    <Spinner animation="border" size="sm" />
+                                    <Spinner />
                                 ) : connectionState === 'success' ? (
-                                    '✓'
+                                    <Icon name="check" className="!text-[18px]" />
                                 ) : connectionState === 'error' ? (
-                                    '✗'
+                                    <Icon name="close" className="!text-[18px]" />
                                 ) : (
                                     'Test Conn'
                                 )
                             }
                         </Button>
                     )}
-                </InputGroup>
-                <Form.Text id="rclone-host-help" muted>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-400" id="rclone-host-help">
                     The host address of the rclone RC API.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="rclone-user-input">Rclone Server User</Form.Label>
-                <Form.Control
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="rclone-user-input">Rclone Server User</label>
+                <Input
+                    className={'w-full'}
                     type="text"
                     id="rclone-user-input"
                     aria-describedby="rclone-user-help"
                     value={config["rclone.user"]}
                     onChange={e => setNewConfig({ ...config, "rclone.user": e.target.value })} />
-                <Form.Text id="rclone-user-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="rclone-user-help">
                     The username for authenticating to the rclone RC API. This field is optional.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="rclone-pass-input">Rclone Server Password</Form.Label>
-                <Form.Control
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="rclone-pass-input">Rclone Server Password</label>
+                <Input
+                    className={'w-full'}
                     type="password"
                     id="rclone-pass-input"
                     aria-describedby="rclone-pass-help"
                     value={config["rclone.pass"]}
                     onChange={e => setNewConfig({ ...config, "rclone.pass": e.target.value })} />
-                <Form.Text id="rclone-pass-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="rclone-pass-help">
                     The password for authenticating to the rclone RC API. This field is optional.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
         </div>
     );
 }

@@ -1,5 +1,7 @@
-import { Button, Form, Card, InputGroup, Spinner } from "react-bootstrap";
-import styles from "./arrs.module.css"
+import { Button } from "~/components/ui/button";
+import { Spinner } from "~/components/ui/feedback";
+import { Input, Select } from "~/components/ui/form";
+import { Icon } from "~/components/ui/icon";
 import { type Dispatch, type SetStateAction, useState, useCallback, useEffect } from "react";
 import { isMaskedSecret } from "~/utils/config-mask";
 
@@ -191,16 +193,16 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
 
 
     return (
-        <div className={styles.container}>
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
+        <div className={'space-y-6'}>
+            <div className={'space-y-4'}>
+                <div className={'flex items-center justify-between text-lg font-semibold text-white'}>
                     <div>Radarr Instances</div>
-                    <Button variant="primary" size="sm" onClick={addRadarrInstance}>
+                    <Button variant="primary" size="small" onClick={addRadarrInstance}>
                         Add
                     </Button>
                 </div>
                 {arrConfig.RadarrInstances.length === 0 ? (
-                    <p className={styles.alertMessage}>No Radarr instances configured. Click on the "Add" button to get started.</p>
+                    <p className={'rounded border border-slate-700/70 bg-slate-800/40 px-3 py-2 text-sm text-slate-400'}>No Radarr instances configured. Click on the "Add" button to get started.</p>
                 ) : (
                     arrConfig.RadarrInstances.map((instance: any, index: number) =>
                         <InstanceForm
@@ -215,15 +217,15 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                 )}
             </div>
             <hr />
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
+            <div className={'space-y-4'}>
+                <div className={'flex items-center justify-between text-lg font-semibold text-white'}>
                     <div>Sonarr Instances</div>
-                    <Button variant="primary" size="sm" onClick={addSonarrInstance}>
+                    <Button variant="primary" size="small" onClick={addSonarrInstance}>
                         Add
                     </Button>
                 </div>
                 {arrConfig.SonarrInstances.length === 0 ? (
-                    <p className={styles.alertMessage}>No Sonarr instances configured. Click on the "Add" button to get started.</p>
+                    <p className={'rounded border border-slate-700/70 bg-slate-800/40 px-3 py-2 text-sm text-slate-400'}>No Sonarr instances configured. Click on the "Add" button to get started.</p>
                 ) : (
                     arrConfig.SonarrInstances.map((instance: any, index: number) =>
                         <InstanceForm
@@ -238,21 +240,21 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                 )}
             </div>
             <hr />
-            <div className={styles.section}>
-                <div className={styles.sectionHeader}>
+            <div className={'space-y-4'}>
+                <div className={'flex items-center justify-between text-lg font-semibold text-white'}>
                     <div>Automatic Queue Management</div>
                 </div>
-                <p className={styles.alertMessage}>
+                <p className={'rounded border border-slate-700/70 bg-slate-800/40 px-3 py-2 text-sm text-slate-400'}>
                     Configure what to do for items stuck in Radarr / Sonarr queues.
                     Different actions can be configured for different status messages.
                     Only `usenet` queue items will be acted upon.
                 </p>
                 <ul>
                     {queueStatusMessages.map((queueStatusMessage, index) =>
-                        <li key={index} className={styles.listItem}>
-                            <div className={styles.statusMessage}>{queueStatusMessage.display}</div>
-                            <Form.Select
-                                className={styles.input}
+                        <li key={index} className={'flex flex-col gap-2 border-b border-slate-700/50 py-3 sm:flex-row sm:items-center sm:justify-between'}>
+                            <div className={'text-sm text-slate-300 sm:max-w-[70%]'}>{queueStatusMessage.display}</div>
+                            <Select
+                                className={'w-full'}
                                 value={arrConfig.QueueRules.find((x: QueueRule) => x.Message == queueStatusMessage.searchTerm)?.Action ?? "0"}
                                 onChange={e => updateQueueAction(queueStatusMessage.searchTerm, Number(e.target.value))}
                             >
@@ -260,7 +262,7 @@ export function ArrsSettings({ config, setNewConfig }: ArrsSettingsProps) {
                                 <option value="1">Remove</option>
                                 <option value="2">Remove and Blocklist</option>
                                 <option value="3">Remove, Blocklist, and Search</option>
-                            </Form.Select>
+                            </Select>
                         </li>
                     )}
                 </ul>
@@ -314,19 +316,19 @@ function InstanceForm({ instance, index, type, onUpdate, onRemove }: InstanceFor
     }, []);
 
     return (
-        <Card className={styles.instanceCard}>
+        <div className={'relative rounded-lg border border-slate-700/70 bg-gray-800 p-4 shadow-md'}>
             <button
-                className={styles.closeButton}
+                className={'absolute right-2 top-2 rounded p-1 text-slate-400 hover:bg-white/10 hover:text-red-400'}
                 onClick={() => onRemove(index)}
                 aria-label="Remove instance"
             >
-                ×
+                <Icon name="close" className="!text-[18px]" />
             </button>
-            <Card.Body>
-                <Form.Group>
-                    <Form.Label>Host</Form.Label>
-                    <InputGroup className={styles.input}>
-                        <Form.Control
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-200">Host</label>
+                    <div className="flex w-full">
+                        <Input
                             type="text"
                             placeholder={type === "radarr" ? "http://localhost:7878" : "http://localhost:8989"}
                             value={instance.Host}
@@ -337,33 +339,33 @@ function InstanceForm({ instance, index, type, onUpdate, onRemove }: InstanceFor
                                     connectionState === 'error' ? 'danger' : 'secondary'}
                                 onClick={() => testConnection(instance.Host, instance.ApiKey)}
                                 disabled={connectionState === 'testing'}
-                                className={styles.testButton}
+                                className={'shrink-0'}
                             >
                                 {
                                     connectionState === 'testing' ? (
-                                        <Spinner animation="border" size="sm" />
+                                        <Spinner />
                                     ) : connectionState === 'success' ? (
-                                        '✓'
+                                        <Icon name="check" className="!text-[18px]" />
                                     ) : connectionState === 'error' ? (
-                                        '✗'
+                                        <Icon name="close" className="!text-[18px]" />
                                     ) : (
                                         'Test Conn'
                                     )
                                 }
                             </Button>
                         )}
-                    </InputGroup>
-                </Form.Group>
-                <Form.Group>
-                    <Form.Label>API Key</Form.Label>
-                    <Form.Control
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-slate-200">API Key</label>
+                    <Input
                         type="password"
-                        className={styles.input}
+                        className={'w-full'}
                         value={instance.ApiKey}
                         onChange={e => onUpdate(index, 'ApiKey', e.target.value)} />
-                </Form.Group>
-            </Card.Body>
-        </Card>
+                </div>
+            </div>
+        </div>
     );
 }
 

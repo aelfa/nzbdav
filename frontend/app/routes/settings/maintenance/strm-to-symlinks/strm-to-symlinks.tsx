@@ -1,5 +1,6 @@
-import { Alert, Button, Form } from "react-bootstrap";
-import styles from "./strm-to-symlinks.module.css";
+import { Button } from "~/components/ui/button";
+import { Alert } from "~/components/ui/feedback";
+import { Icon } from "~/components/ui/icon";
 import { useCallback, useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
 
@@ -22,7 +23,7 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
     const isRunning = !isFinished && (isFetching || progress !== null);
     const isRunButtonEnabled = !!libraryDir && connected && !isRunning;
     const runButtonVariant = isRunButtonEnabled ? 'success' : 'secondary';
-    const runButtonLabel = isRunning ? "⌛ Running.." : '▶ Run Task';
+    const runButtonLabel = isRunning ? "Running..." : "Run Task";
 
     // effects
     useEffect(() => {
@@ -49,10 +50,10 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
     return (
         <>
             {!libraryDir &&
-                <Alert className={styles.alert} variant="warning">
+                <Alert className={'mb-3'} variant="warning">
                     Warning
-                    <ul className={styles.list}>
-                        <li className={styles["list-item"]}>
+                    <ul className={'mt-2 list-disc space-y-1 pl-5'}>
+                        <li className={'text-xs'}>
                             You must first configure the Library Directory setting before running this task.
                             Head over to the Repairs tab.
                         </li>
@@ -60,40 +61,41 @@ export function ConvertStrmToSymlinks({ savedConfig }: ConvertStrmToSymlinksProp
                 </Alert>
             }
             {libraryDir &&
-                <Alert className={styles.alert} variant="danger">
-                    <span style={{ fontWeight: 'bold' }}>Danger</span>
-                    <ul className={styles.list}>
-                        <li className={styles["list-item"]}>
+                <Alert className={'mb-3'} variant="danger">
+                    <span className="font-semibold">Danger</span>
+                    <ul className={'mt-2 list-disc space-y-1 pl-5'}>
+                        <li className={'text-xs'}>
                             Make a backup of your entire Library Dir prior to running this task
                         </li>
-                        <li className={styles["list-item"]}>
+                        <li className={'text-xs'}>
                             Strm files will be deleted from `{libraryDir}` and will not be recoverable without a backup.
                         </li>
                     </ul>
                 </Alert>
             }
-            <div className={styles.task}>
-                <Form.Group>
-                    <div className={styles.run}>
+            <div className={'space-y-3'}>
+                <div className="space-y-2">
+                    <div className={'flex flex-col gap-3 sm:flex-row sm:items-center'}>
                         <Button
-                            className={styles["run-button"]}
+                            className={'shrink-0'}
                             variant={runButtonVariant}
                             onClick={onRun}
                             disabled={!isRunButtonEnabled}
                         >
+                            <Icon name={isRunning ? "progress_activity" : "play_arrow"} className={`!text-[18px] ${isRunning ? "animate-spin" : ""}`} />
                             {runButtonLabel}
                         </Button>
-                        <div className={styles["task-progress"]}>
+                        <div className={'font-mono text-xs text-slate-300'}>
                             {progress}
                         </div>
                     </div>
-                    <Form.Text id="cleanup-task-progress-help" muted>
+                    <p className="text-xs leading-relaxed text-slate-400" id="cleanup-task-progress-help">
                         <br />
                         This task will scan your organized media library for all *.strm files.
                         Every *.strm file that links to nzbdav media will be deleted and be replaced by a symlink.
                         The newly created symlinks will all point to the corresponding file within your rclone mount.
-                    </Form.Text>
-                </Form.Group>
+                    </p>
+                </div>
             </div>
         </>
     );

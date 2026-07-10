@@ -1,6 +1,6 @@
+import { Button } from "~/components/ui/button";
+import { TabPanel, Tabs, type TabOption } from "~/components/ui/tabs";
 import type { Route } from "./+types/route";
-import styles from "./route.module.css"
-import { Tabs, Tab, Button } from "react-bootstrap"
 import { backendClient } from "~/clients/backend-client.server";
 import { isUsenetSettingsUpdated, UsenetSettings } from "./usenet/usenet";
 import { isSabnzbdSettingsUpdated, isSabnzbdSettingsValid, SabnzbdSettings } from "./sabnzbd/sabnzbd";
@@ -84,7 +84,8 @@ function Body(props: BodyProps) {
     const [newConfig, setNewConfig] = useState(config);
     const [isSaving, setIsSaving] = useState(false);
     const [isSaved, setIsSaved] = useState(false);
-    const [activeTab, setActiveTab] = useState('usenet');
+    type SettingsTab = "usenet" | "sabnzbd" | "webdav" | "arrs" | "repairs" | "rclone" | "maintenance";
+    const [activeTab, setActiveTab] = useState<SettingsTab>("usenet");
 
     // derived variables
     const iseUsenetUpdated = isUsenetSettingsUpdated(config, newConfig);
@@ -97,23 +98,32 @@ function Body(props: BodyProps) {
     const isUpdated = iseUsenetUpdated || isSabnzbdUpdated || isWebdavUpdated || isArrsUpdated || isRepairsUpdated || isRcloneUpdated || isMaintenanceUpdated;
     const navigationBlocker = useNavigationBlocker(isUpdated);
 
-    const usenetTitle = iseUsenetUpdated ? "✏️ Usenet" : "Usenet";
-    const sabnzbdTitle = isSabnzbdUpdated ? "✏️ SABnzbd " : "SABnzbd";
-    const webdavTitle = isWebdavUpdated ? "✏️ WebDAV" : "WebDAV";
-    const arrsTitle = isArrsUpdated ? "✏️ Radarr/Sonarr" : "Radarr/Sonarr";
-    const repairsTitle = isRepairsUpdated ? "✏️ Repairs" : "Repairs";
-    const rcloneTitle = isRcloneUpdated ? "✏️ Rclone Server" : "Rclone Server";
-    const maintenanceTitle = isMaintenanceUpdated ? "✏️ Maintenance" : "Maintenance";
+    const usenetTitle = iseUsenetUpdated ? "Usenet •" : "Usenet";
+    const sabnzbdTitle = isSabnzbdUpdated ? "SABnzbd •" : "SABnzbd";
+    const webdavTitle = isWebdavUpdated ? "WebDAV •" : "WebDAV";
+    const arrsTitle = isArrsUpdated ? "Radarr/Sonarr •" : "Radarr/Sonarr";
+    const repairsTitle = isRepairsUpdated ? "Repairs •" : "Repairs";
+    const rcloneTitle = isRcloneUpdated ? "Rclone Server •" : "Rclone Server";
+    const maintenanceTitle = isMaintenanceUpdated ? "Maintenance •" : "Maintenance";
+    const tabOptions: TabOption<SettingsTab>[] = [
+        { id: "usenet", label: usenetTitle, icon: "cloud" },
+        { id: "sabnzbd", label: sabnzbdTitle, icon: "download" },
+        { id: "webdav", label: webdavTitle, icon: "folder_shared" },
+        { id: "arrs", label: arrsTitle, icon: "sync_alt" },
+        { id: "repairs", label: repairsTitle, icon: "build" },
+        { id: "rclone", label: rcloneTitle, icon: "dns" },
+        { id: "maintenance", label: maintenanceTitle, icon: "settings_suggest" },
+    ];
 
     const saveButtonLabel = isSaving ? "Saving..."
-        : !isUpdated && isSaved ? "Saved ✅"
+        : !isUpdated && isSaved ? "Saved"
         : !isUpdated && !isSaved ? "There are no changes to save"
         : isSabnzbdUpdated && !isSabnzbdSettingsValid(newConfig) ? "Invalid SABnzbd settings"
         : isWebdavUpdated && !isWebdavSettingsValid(newConfig) ? "Invalid WebDAV settings"
         : isArrsUpdated && !isArrsSettingsValid(newConfig) ? "Invalid Arrs settings"
         : "Save";
     const saveButtonVariant = saveButtonLabel === "Save" ? "primary"
-        : saveButtonLabel === "Saved ✅" ? "success"
+        : saveButtonLabel === "Saved" ? "success"
         : "secondary";
     const isSaveButtonDisabled = saveButtonLabel !== "Save";
 
@@ -143,49 +153,33 @@ function Body(props: BodyProps) {
     }, [config, newConfig, setIsSaving, setIsSaved, setConfig]);
 
     return (
-        <div className={styles.container}>
-            <Tabs
-                activeKey={activeTab}
-                onSelect={x => setActiveTab(x!)}
-                className={styles.tabs}
-            >
-                <Tab eventKey="usenet" title={usenetTitle}>
-                    <UsenetSettings config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-                <Tab eventKey="sabnzbd" title={sabnzbdTitle}>
-                    <SabnzbdSettings config={newConfig} setNewConfig={setNewConfig} appVersion={props.appVersion} />
-                </Tab>
-                <Tab eventKey="webdav" title={webdavTitle}>
-                    <WebdavSettings config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-                <Tab eventKey="arrs" title={arrsTitle}>
-                    <ArrsSettings config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-                <Tab eventKey="repairs" title={repairsTitle}>
-                    <RepairsSettings config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-                <Tab eventKey="rclone" title={rcloneTitle}>
-                    <RcloneSettings config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-                <Tab eventKey="maintenance" title={maintenanceTitle}>
-                    <Maintenance savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />
-                </Tab>
-            </Tabs>
-            <hr />
-            {isUpdated && <Button
-                className={styles.button}
-                variant="secondary"
-                disabled={!isUpdated}
-                onClick={() => onClear()}>
-                Clear
-            </Button>}
-            <Button
-                className={styles.button}
-                variant={saveButtonVariant}
-                disabled={isSaveButtonDisabled}
-                onClick={onSave}>
-                {saveButtonLabel}
-            </Button>
+        <div className="flex flex-col gap-6 px-4 py-4 md:px-8">
+            <Tabs options={tabOptions} value={activeTab} onChange={setActiveTab} />
+            <TabPanel>
+                {activeTab === "usenet" && <UsenetSettings config={newConfig} setNewConfig={setNewConfig} />}
+                {activeTab === "sabnzbd" && <SabnzbdSettings config={newConfig} setNewConfig={setNewConfig} appVersion={props.appVersion} />}
+                {activeTab === "webdav" && <WebdavSettings config={newConfig} setNewConfig={setNewConfig} />}
+                {activeTab === "arrs" && <ArrsSettings config={newConfig} setNewConfig={setNewConfig} />}
+                {activeTab === "repairs" && <RepairsSettings config={newConfig} setNewConfig={setNewConfig} />}
+                {activeTab === "rclone" && <RcloneSettings config={newConfig} setNewConfig={setNewConfig} />}
+                {activeTab === "maintenance" && <Maintenance savedConfig={config} config={newConfig} setNewConfig={setNewConfig} />}
+            </TabPanel>
+            <div className="flex flex-wrap justify-end gap-2 border-t border-slate-700/70 pt-4">
+                {isUpdated && <Button
+                    className="min-w-28"
+                    variant="secondary"
+                    disabled={!isUpdated}
+                    onClick={onClear}>
+                    Clear
+                </Button>}
+                <Button
+                    className="min-w-28"
+                    variant={saveButtonVariant}
+                    disabled={isSaveButtonDisabled}
+                    onClick={onSave}>
+                    {saveButtonLabel}
+                </Button>
+            </div>
             <ConfirmModal
                 show={navigationBlocker.showConfirmation}
                 title="Unsaved Changes"

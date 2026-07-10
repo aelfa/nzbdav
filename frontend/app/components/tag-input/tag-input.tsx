@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, useEffect, type ChangeEvent, type KeyboardEvent } from "react";
-import styles from "./tag-input.module.css";
+import { Icon } from "~/components/ui/icon";
 import { classNames } from "~/utils/styling";
 
 const delimiter = ",";
@@ -96,30 +96,36 @@ export function TagInput({
     }, []);
 
     return (
-        <div className={classNames([styles.container, className])} onClick={handleContainerClick}>
+        <div
+            className={classNames([
+                "form-input relative flex min-h-9 w-full cursor-text flex-wrap items-center gap-1.5",
+                className,
+            ])}
+            onClick={handleContainerClick}
+        >
             {tags.map((tag, index) => (
-                <span key={index} className={styles.tag}>
+                <span key={index} className={'inline-flex items-center gap-1 rounded-full border border-slate-600/60 bg-slate-700/40 px-2 py-0.5 text-xs text-slate-200'}>
                     {tag}
                     <button
                         type="button"
-                        className={styles.removeButton}
+                        className={'rounded text-slate-400 hover:text-red-400'}
                         onClick={(e) => {
                             e.stopPropagation();
                             removeTag(index);
                         }}
                         aria-label={`Remove ${tag}`}
                     >
-                        &times;
+                        <Icon name="close" className="!text-[14px]" />
                     </button>
                 </span>
             ))}
-            <span ref={measureRef} className={styles.measure}>
+            <span ref={measureRef} className={'invisible absolute whitespace-pre text-sm'}>
                 {displayText}
             </span>
             <input
                 ref={inputRef}
                 type="text"
-                className={styles.input}
+                className="min-w-24 flex-1 bg-transparent text-sm text-slate-200 outline-none placeholder:text-slate-500"
                 style={{ width: inputWidth }}
                 value={inputValue}
                 onChange={handleInputChange}

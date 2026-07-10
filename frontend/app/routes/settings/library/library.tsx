@@ -1,5 +1,4 @@
-import { Form } from "react-bootstrap";
-import styles from "./library.module.css"
+import { Input } from "~/components/ui/form";
 import { type Dispatch, type SetStateAction } from "react";
 
 type LibrarySettingsProps = {
@@ -10,21 +9,21 @@ type LibrarySettingsProps = {
 
 export function LibrarySettings({ savedConfig, config, setNewConfig }: LibrarySettingsProps) {
     return (
-        <div className={styles.container}>
-            <Form.Group>
-                <Form.Label htmlFor="library-dir-input">Library Directory</Form.Label>
-                <Form.Control
-                    className={styles.input}
+        <div className={'space-y-6'}>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="library-dir-input">Library Directory</label>
+                <Input
+                    className={'w-full'}
                     type="text"
                     id="library-dir-input"
                     aria-describedby="library-dir-help"
                     value={config["media.library-dir"]}
                     onChange={e => setNewConfig({ ...config, "media.library-dir": e.target.value })} />
-                <Form.Text id="library-dir-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="library-dir-help">
                     The path to your organized media library that contains all your imported symlinks.
                     Make sure this path is visible to your NzbDAV container.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
         </div>
     );
 }

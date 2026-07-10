@@ -1,5 +1,4 @@
-import { Form, InputGroup } from "react-bootstrap";
-import styles from "./webdav.module.css"
+import { Checkbox, Input } from "~/components/ui/form";
 import { type Dispatch, type SetStateAction } from "react";
 import { className } from "~/utils/styling";
 import { isPositiveInteger } from "../usenet/usenet";
@@ -11,126 +10,126 @@ type SabnzbdSettingsProps = {
 
 export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
     return (
-        <div className={styles.container}>
-            <Form.Group>
-                <Form.Label htmlFor="webdav-user-input">WebDAV User</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidUser(config["webdav.user"]) && styles.error])}
+        <div className={'space-y-6'}>
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="webdav-user-input">WebDAV User</label>
+                <Input
+                    {...className(['w-full', !isValidUser(config["webdav.user"]) && 'border-red-500 focus:border-red-500'])}
                     type="text"
                     id="webdav-user-input"
                     aria-describedby="webdav-user-help"
                     placeholder="admin"
                     value={config["webdav.user"]}
                     onChange={e => setNewConfig({ ...config, "webdav.user": e.target.value })} />
-                <Form.Text id="webdav-user-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="webdav-user-help">
                     Use this user to connect to the webdav. Only letters, numbers, dashes, and underscores allowed.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="webdav-pass-input">WebDAV Password</Form.Label>
-                <Form.Control
-                    className={styles.input}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="webdav-pass-input">WebDAV Password</label>
+                <Input
+                    className={'w-full'}
                     type="password"
                     id="webdav-pass-input"
                     aria-describedby="webdav-pass-help"
                     value={config["webdav.pass"]}
                     onChange={e => setNewConfig({ ...config, "webdav.pass": e.target.value })} />
-                <Form.Text id="webdav-pass-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="webdav-pass-help">
                     Use this password to connect to the webdav.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="max-download-connections-input">Max Download Connections</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidMaxDownloadConnections(config["usenet.max-download-connections"]) && styles.error])}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="max-download-connections-input">Max Download Connections</label>
+                <Input
+                    {...className(['w-full', !isValidMaxDownloadConnections(config["usenet.max-download-connections"]) && 'border-red-500 focus:border-red-500'])}
                     type="text"
                     id="max-download-connections-input"
                     aria-describedby="max-download-connections-help"
                     placeholder="15"
                     value={config["usenet.max-download-connections"]}
                     onChange={e => setNewConfig({ ...config, "usenet.max-download-connections": e.target.value })} />
-                <Form.Text id="max-download-connections-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="max-download-connections-help">
                     The maximum number of connections that will be used for downloading articles from your usenet provider(s).
                     Configure this to the minimum number of connections that will fully saturate your server's bandwidth.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="streaming-priority-input">Streaming Priority (vs Queue)</Form.Label>
-                <InputGroup className={styles.input}>
-                    <Form.Control
-                        className={!isValidStreamingPriority(config["usenet.streaming-priority"]) ? styles.error : undefined}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="streaming-priority-input">Streaming Priority (vs Queue)</label>
+                <div className="flex w-full">
+                    <Input
+                        className={!isValidStreamingPriority(config["usenet.streaming-priority"]) ? 'border-red-500 focus:border-red-500' : undefined}
                         type="text"
                         id="streaming-priority-input"
                         aria-describedby="streaming-priority-help"
                         placeholder="80"
                         value={config["usenet.streaming-priority"]}
                         onChange={e => setNewConfig({ ...config, "usenet.streaming-priority": e.target.value })} />
-                    <InputGroup.Text>%</InputGroup.Text>
-                </InputGroup>
-                <Form.Text id="streaming-priority-help" muted>
+                    <span className="flex items-center rounded-r border border-l-0 border-slate-600 bg-slate-800 px-2 text-sm text-slate-300">%</span>
+                </div>
+                <p className="text-xs leading-relaxed text-slate-400" id="streaming-priority-help">
                     When streaming from the webdav while the queue is also active, how much bandwidth should be dedicated to streaming?
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Label htmlFor="article-buffer-size-input">Article Buffer Size</Form.Label>
-                <Form.Control
-                    {...className([styles.input, !isValidArticleBufferSize(config["usenet.article-buffer-size"]) && styles.error])}
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="article-buffer-size-input">Article Buffer Size</label>
+                <Input
+                    {...className(['w-full', !isValidArticleBufferSize(config["usenet.article-buffer-size"]) && 'border-red-500 focus:border-red-500'])}
                     type="text"
                     id="article-buffer-size-input"
                     aria-describedby="article-buffer-size-help"
                     placeholder="40"
                     value={config["usenet.article-buffer-size"]}
                     onChange={e => setNewConfig({ ...config, "usenet.article-buffer-size": e.target.value })} />
-                <Form.Text id="article-buffer-size-help" muted>
+                <p className="text-xs leading-relaxed text-slate-400" id="article-buffer-size-help">
                     The number of articles to buffer ahead, per stream, when reading from the webdav.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="readonly-checkbox"
                     aria-describedby="readonly-help"
-                    label={`Enforce Read-Only`}
                     checked={config["webdav.enforce-readonly"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "webdav.enforce-readonly": "" + e.target.checked })} />
-                <Form.Text id="readonly-help" muted>
+                    onChange={e => setNewConfig({ ...config, "webdav.enforce-readonly": "" + e.target.checked })}  />
+                    <span>{`Enforce Read-Only`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="readonly-help">
                     The WebDAV `/content` folder will be readonly when checked. WebDAV clients will not be able to delete files within this directory.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="show-hidden-files-checkbox"
                     aria-describedby="show-hidden-files-help"
-                    label={`Show hidden files on Dav Explorer`}
                     checked={config["webdav.show-hidden-files"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "webdav.show-hidden-files": "" + e.target.checked })} />
-                <Form.Text id="show-hidden-files-help" muted>
+                    onChange={e => setNewConfig({ ...config, "webdav.show-hidden-files": "" + e.target.checked })}  />
+                    <span>{`Show hidden files on Dav Explorer`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="show-hidden-files-help">
                     Hidden files or directories are those whose names are prefixed by a period.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
             <hr />
-            <Form.Group>
-                <Form.Check
-                    className={styles.input}
-                    type="checkbox"
+            <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-slate-300">
+                    <Checkbox
                     id="preview-par2-files-checkbox"
                     aria-describedby="preview-par2-files-help"
-                    label={`Preview par2 files on Dav Explorer`}
                     checked={config["webdav.preview-par2-files"] === "true"}
-                    onChange={e => setNewConfig({ ...config, "webdav.preview-par2-files": "" + e.target.checked })} />
-                <Form.Text id="preview-par2-files-help" muted>
+                    onChange={e => setNewConfig({ ...config, "webdav.preview-par2-files": "" + e.target.checked })}  />
+                    <span>{`Preview par2 files on Dav Explorer`}</span>
+                </label>
+                <p className="text-xs leading-relaxed text-slate-400" id="preview-par2-files-help">
                     When enabled, par2 files will be rendered as text files on the Dav Explorer page, displaying all File-Descriptor entries.
-                </Form.Text>
-            </Form.Group>
+                </p>
+            </div>
         </div>
     );
 }

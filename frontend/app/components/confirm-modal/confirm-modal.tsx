@@ -1,4 +1,7 @@
-import { Alert, Button, Form, Modal } from "react-bootstrap";
+import { Button } from "~/components/ui/button";
+import { Alert } from "~/components/ui/feedback";
+import { Checkbox } from "~/components/ui/form";
+import { Modal } from "~/components/ui/modal";
 import { WordWrap } from "../word-wrap/word-wrap";
 import { useCallback, useState, type ReactNode } from "react";
 
@@ -28,39 +31,33 @@ export function ConfirmModal(props: ConfirmModalProps) {
     }, [props.onCancel, setIsCheckboxChecked]);
 
     return (
-        <Modal show={props.show} onHide={onCancel} centered scrollable>
-            <Modal.Header closeButton>
-                <Modal.Title>{props.title}</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <div>
-                    <div style={{ fontSize: "12px" }}>
-                        <WordWrap>{props.message}</WordWrap>
-                    </div>
-                    {props.checkboxMessage &&
-                        <Form.Check
-                            type="checkbox"
-                            id="modal-checkbox"
-                            style={{ marginTop: '12px' }}
-                            label={props.checkboxMessage}
-                            checked={isCheckboxChecked}
-                            onChange={(e) => setIsCheckboxChecked(Boolean(e.target.checked))} />
-                    }
-                    {props.errorMessage &&
-                        <Alert variant="warning" style={{ marginTop: '20px', fontSize: '14px' }}>
-                            {props.errorMessage}
-                        </Alert>
-                    }
-                </div>
-            </Modal.Body>
-            <Modal.Footer>
+        <Modal
+            open={props.show}
+            onClose={onCancel}
+            title={props.title}
+            footer={<>
                 <Button variant="secondary" onClick={onCancel}>
                     {props.cancelText || "Close"}
                 </Button>
                 <Button variant="danger" onClick={() => onConfirm(isCheckboxChecked)}>
                     {props.confirmText || "Confirm Removal"}
                 </Button>
-            </Modal.Footer>
+            </>}
+        >
+            <div className="space-y-3 text-xs text-slate-300">
+                <WordWrap>{props.message}</WordWrap>
+                {props.checkboxMessage && (
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                        <Checkbox
+                            id="modal-checkbox"
+                            checked={isCheckboxChecked}
+                            onChange={(event) => setIsCheckboxChecked(event.target.checked)}
+                        />
+                        <span>{props.checkboxMessage}</span>
+                    </label>
+                )}
+                {props.errorMessage && <Alert variant="warning">{props.errorMessage}</Alert>}
+            </div>
         </Modal>
     );
 }
