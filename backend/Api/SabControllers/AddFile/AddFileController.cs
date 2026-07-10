@@ -113,6 +113,8 @@ public class AddFileController(
     {
         try
         {
+            ValidateBackupCategory(category);
+
             if (!Directory.Exists(backupLocation))
                 Directory.CreateDirectory(backupLocation);
 
@@ -139,6 +141,18 @@ public class AddFileController(
         catch (Exception e)
         {
             throw new Exception($"Could not save nzb to `{backupLocation}`", e);
+        }
+    }
+
+    private static void ValidateBackupCategory(string category)
+    {
+        if (Path.IsPathRooted(category) ||
+            category is "." or ".." ||
+            category.Contains('/') ||
+            category.Contains('\\') ||
+            category.Contains('\0'))
+        {
+            throw new ArgumentException("The NZB backup category must be a single directory name.", nameof(category));
         }
     }
 
