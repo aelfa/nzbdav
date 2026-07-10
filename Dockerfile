@@ -21,7 +21,7 @@ COPY ./backend ./
 ARG TARGETARCH
 RUN --mount=type=secret,id=github_token \
     dotnet nuget update source github \
-      --username hoivikaj \
+      --username nzbdav \
       --password "$(cat /run/secrets/github_token)" \
       --store-password-in-clear-text \
     && dotnet restore

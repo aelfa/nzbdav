@@ -55,7 +55,7 @@ You can get your PUID/PGID by running `id` in your terminal.
 ```yaml
 services:
   nzbdav:
-    image: ghcr.io/hoivikaj/nzbdav:latest
+    image: ghcr.io/nzbdav/nzbdav:latest
     container_name: nzbdav
     restart: unless-stopped
     healthcheck:

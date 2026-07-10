@@ -35,9 +35,9 @@ sudo pacman -S dotnet-sdk aspnet-runtime nodejs npm
 The `UsenetSharp` dependency is resolved from GitHub Packages. Before building the backend, authenticate once (credentials are stored in your user-level NuGet config, not in the repo):
 
 ```bash
-dotnet nuget add source https://nuget.pkg.github.com/hoivikaj/index.json \
+dotnet nuget add source https://nuget.pkg.github.com/nzbdav/index.json \
   --name github \
-  --username hoivikaj \
+  --username nzbdav \
   --password <GITHUB_PAT_WITH_read:packages> \
   --store-password-in-clear-text
 ```
