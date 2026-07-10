@@ -87,7 +87,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
         }
     }
 
-    private static RarProcessor.StoredFileSegment[] SortByPartNumber(
+    internal static RarProcessor.StoredFileSegment[] SortByPartNumber(
         List<RarProcessor.StoredFileSegment> storedFileSegments)
     {
         // Find delta between part number from headers and filenames.
@@ -108,7 +108,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
             .ToArray();
     }
 
-    private static void ValidateVolumes(List<RarProcessor.StoredFileSegment> storedFileSegments)
+    internal static void ValidateVolumes(List<RarProcessor.StoredFileSegment> storedFileSegments)
     {
         if (storedFileSegments.Count == 0) return;
         var distinctUncompressedSizes = storedFileSegments.Select(x => x.FileUncompressedSize).Distinct().ToList();

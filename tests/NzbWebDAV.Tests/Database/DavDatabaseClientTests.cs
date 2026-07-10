@@ -1,0 +1,131 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using NzbWebDAV.Database;
+using NzbWebDAV.Database.Interceptors;
+using NzbWebDAV.Database.MigrationHelpers;
+using NzbWebDAV.Database.Models;
+using NzbWebDAV.Extensions;
+using NzbWebDAV.Config;
+using NzbWebDAV.Queue;
+using NzbWebDAV.Tests.Fakes;
+using NzbWebDAV.Websocket;
+
+namespace NzbWebDAV.Tests.Database;
+
+public sealed class DavDatabaseClientTests : IAsyncLifetime
+{
+    private readonly string _databasePath =
+        Path.Combine(Path.GetTempPath(), $"nzbdav-tests-{Guid.NewGuid():N}.sqlite");
+    private DavDatabaseContext _context = null!;
+    private DavDatabaseClient _client = null!;
+
+    public async Task InitializeAsync()
+    {
+        var options = new DbContextOptionsBuilder<DavDatabaseContext>()
+            .UseSqlite($"Data Source={_databasePath}")
+            .AddInterceptors(new SqliteForeignKeyEnabler())
+            .ReplaceService<
+                IMigrationsSqlGenerator,
+                SqliteMigrationsSqlGenerator<SqliteMigrationsSqlGenerator>>()
+            .Options;
+        _context = new DavDatabaseContext(options);
+        await _context.Database.MigrateAsync();
+        _client = new DavDatabaseClient(_context);
+    }
+
+    [Fact]
+    public async Task DirectoryQueriesAndRecursiveSize_UseRealSqliteSchema()
+    {
+        var root = CloneRoot();
+        var directory = DavItem.New(
+            Guid.NewGuid(), root, "movies", null,
+            DavItem.ItemType.Directory, DavItem.ItemSubType.Directory,
+            null, null, null, null);
+        var nestedDirectory = DavItem.New(
+            Guid.NewGuid(), directory, "science-fiction", null,
+            DavItem.ItemType.Directory, DavItem.ItemSubType.Directory,
+            null, null, null, null);
+        var firstFile = DavItem.New(
+            Guid.NewGuid(), directory, "first.mkv", 100,
+            DavItem.ItemType.UsenetFile, DavItem.ItemSubType.NzbFile,
+            null, null, null, null);
+        var nestedFile = DavItem.New(
+            Guid.NewGuid(), nestedDirectory, "nested.mkv", 250,
+            DavItem.ItemType.UsenetFile, DavItem.ItemSubType.NzbFile,
+            null, null, null, null);
+
+        _context.Items.AddRange(root, directory, nestedDirectory, firstFile, nestedFile);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var children = await _client.GetDirectoryChildrenAsync(directory.Id);
+        Assert.Equal(
+            new[] { "first.mkv", "science-fiction" },
+            children.Select(item => item.Name).Order());
+        Assert.Equal(350, await _client.GetRecursiveSize(directory.Id));
+        Assert.Equal(firstFile.Id, (await _client.GetFileById(firstFile.Id.ToString()))?.Id);
+        Assert.Equal(
+            firstFile.Id,
+            (await _client.GetFilesByIdPrefix(firstFile.IdPrefix)).Single().Id);
+    }
+
+    [Fact]
+    public async Task QueueItemProcessor_MovesMissingNzbToFailedHistory()
+    {
+        var queueItem = new QueueItem
+        {
+            Id = Guid.NewGuid(),
+            CreatedAt = DateTime.UtcNow,
+            FileName = "missing.nzb",
+            JobName = "missing",
+            NzbFileSize = 100,
+            TotalSegmentBytes = 200,
+            Category = "movies",
+            Priority = QueueItem.PriorityOption.Normal,
+            PostProcessing = QueueItem.PostProcessingOption.None
+        };
+        _context.QueueItems.Add(queueItem);
+        await _context.SaveChangesAsync();
+        _context.ChangeTracker.Clear();
+
+        var processor = new QueueItemProcessor(
+            queueItem,
+            queueNzbStream: null,
+            _client,
+            new FakeNntpClient(new Dictionary<string, byte[]>()),
+            new ConfigManager(),
+            new WebsocketManager(),
+            new Progress<int>(),
+            CancellationToken.None);
+        await processor.ProcessAsync();
+
+        Assert.Empty(await _context.QueueItems.AsNoTracking().ToListAsync());
+        var historyItem = Assert.Single(
+            await _context.HistoryItems.AsNoTracking().ToListAsync());
+        Assert.Equal(queueItem.Id, historyItem.Id);
+        Assert.Equal(HistoryItem.DownloadStatusOption.Failed, historyItem.DownloadStatus);
+        Assert.Equal("The NZB file could not be found.", historyItem.FailMessage);
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _context.DisposeAsync();
+        File.Delete(_databasePath);
+    }
+
+    private static DavItem CloneRoot()
+    {
+        return new DavItem
+        {
+            Id = DavItem.Root.Id,
+            IdPrefix = DavItem.Root.Id.GetFiveLengthPrefix(),
+            CreatedAt = DateTime.UtcNow,
+            ParentId = null,
+            Name = DavItem.Root.Name,
+            FileSize = null,
+            Type = DavItem.Root.Type,
+            SubType = DavItem.Root.SubType,
+            Path = DavItem.Root.Path
+        };
+    }
+}

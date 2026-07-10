@@ -12,8 +12,16 @@ using NzbWebDAV.WebDav;
 
 namespace NzbWebDAV.Database;
 
-public sealed class DavDatabaseContext() : DbContext(Options.Value)
+public sealed class DavDatabaseContext : DbContext
 {
+    public DavDatabaseContext() : base(Options.Value)
+    {
+    }
+
+    public DavDatabaseContext(DbContextOptions<DavDatabaseContext> options) : base(options)
+    {
+    }
+
     public static string ConfigPath => EnvironmentUtil.GetEnvironmentVariable("CONFIG_PATH") ?? "/config";
     public static string DatabaseFilePath => Path.Join(ConfigPath, "db.sqlite");
 
