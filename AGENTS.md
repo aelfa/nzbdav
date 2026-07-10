@@ -217,7 +217,7 @@ Docker image builds are shared via the reusable workflow. Branch and dependabot 
 
 - Merging to `main` triggers **release-please** (`.github/workflows/release.yml`) which maintains `CHANGELOG.md` + `version.txt` and creates GitHub releases.
 - `feat` → minor bump; `fix` → patch bump (pre-1.0 rules in `.release-please-config.json`).
-- When a GitHub release is **published**, the same workflow builds and pushes Docker images to `ghcr.io` (`latest`, exact semver, and rolling `MAJOR.x` / `MAJOR.MINOR.x` tags).
+- When a GitHub release is **published**, the same workflow builds and pushes Docker images to `ghcr.io` (`latest`, exact semver, and rolling `vMAJOR` / `vMAJOR.MINOR` tags).
 - To republish images for an existing release (e.g. after fixing CI), run **Release** workflow manually with the `version` input (e.g. `0.6.5`).
 - Pre-release Docker images (`:pre-release`) build on every `main` push except `chore(main): release` commits.
 - Ensure `nzbdav/nzbdav` has **Read** access on the UsenetSharp GitHub Package (Package settings → Manage Actions access); without it Docker builds fail restoring the private NuGet feed.

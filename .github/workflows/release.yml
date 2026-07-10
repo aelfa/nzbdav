@@ -68,8 +68,8 @@ jobs:
       tags: |
         ghcr.io/${{ github.repository }}:latest
         ghcr.io/${{ github.repository }}:${{ needs.resolve-version.outputs.version }}
-        ghcr.io/${{ github.repository }}:${{ needs.resolve-version.outputs.major }}.x
-        ghcr.io/${{ github.repository }}:${{ needs.resolve-version.outputs.major }}.${{ needs.resolve-version.outputs.minor }}.x
+        ghcr.io/${{ github.repository }}:v${{ needs.resolve-version.outputs.major }}
+        ghcr.io/${{ github.repository }}:v${{ needs.resolve-version.outputs.major }}.${{ needs.resolve-version.outputs.minor }}
       nzbdav_version: ${{ needs.resolve-version.outputs.version }}
       checkout_ref: ${{ needs.resolve-version.outputs.ref }}
     secrets:
