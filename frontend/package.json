@@ -8,7 +8,8 @@
   "scripts": {
     "build": "react-router build",
     "build:server": "tsc -p tsconfig.node.json --outDir dist-node",
-    "dev": "cross-env NODE_ENV=development PORT=5173 tsx server.ts",
+    "predev": "bash ../scripts/sync-dev-env.sh",
+    "dev": "node --env-file-if-exists=.env --env-file-if-exists=.env.local --import tsx server.ts",
     "start": "node dist-node/server.js",
     "test": "vitest run",
     "typecheck": "react-router typegen && tsc -b"
