@@ -41,12 +41,12 @@ class Program
         var level = Enum.TryParse<LogEventLevel>(envLevel, true, out var parsed) ? parsed : defaultLevel;
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Is(level)
-            .MinimumLevel.Override("NWebDAV", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-            .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.AspNetCore.DataProtection", LogEventLevel.Error)
+            .MinimumLevel.Override("NWebDAV", AtLeast(level, LogEventLevel.Warning))
+            .MinimumLevel.Override("Microsoft", AtLeast(level, LogEventLevel.Information))
+            .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", AtLeast(level, LogEventLevel.Warning))
+            .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", AtLeast(level, LogEventLevel.Warning))
+            .MinimumLevel.Override("Microsoft.AspNetCore.Routing", AtLeast(level, LogEventLevel.Warning))
+            .MinimumLevel.Override("Microsoft.AspNetCore.DataProtection", AtLeast(level, LogEventLevel.Error))
             .WriteTo.Console(theme: AnsiConsoleTheme.Code)
             .CreateLogger();
 
@@ -131,6 +131,11 @@ class Program
         app.UseNWebDav();
         app.Lifetime.ApplicationStopping.Register(SigtermUtil.Cancel);
         await app.RunAsync().ConfigureAwait(false);
+    }
+
+    private static LogEventLevel AtLeast(LogEventLevel configured, LogEventLevel minimum)
+    {
+        return configured > minimum ? configured : minimum;
     }
 
     private static void BlockUpgradesToV06X()
