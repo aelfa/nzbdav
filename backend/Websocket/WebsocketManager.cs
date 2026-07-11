@@ -11,6 +11,7 @@ public class WebsocketManager
 {
     private readonly HashSet<WebSocket> _authenticatedSockets = [];
     private readonly Dictionary<WebsocketTopic, string> _lastMessage = new();
+    private readonly Dictionary<WebSocket, SemaphoreSlim> _sendLocks = new();
 
     public async Task HandleRoute(HttpContext context)
     {
@@ -29,6 +30,8 @@ public class WebsocketManager
             // mark the socket as authenticated
             lock (_authenticatedSockets)
                 _authenticatedSockets.Add(webSocket);
+            lock (_sendLocks)
+                _sendLocks[webSocket] = new SemaphoreSlim(1, 1);
             Log.Debug(
                 "Websocket client connected from {RemoteIpAddress}; {ConnectionCount} authenticated clients connected",
                 context.Connection.RemoteIpAddress,
@@ -43,8 +46,7 @@ public class WebsocketManager
 
             // wait for the socket to disconnect
             await WaitForDisconnected(webSocket).ConfigureAwait(false);
-            lock (_authenticatedSockets)
-                _authenticatedSockets.Remove(webSocket);
+            RemoveSocket(webSocket);
             Log.Debug(
                 "Websocket client disconnected from {RemoteIpAddress}; {ConnectionCount} authenticated clients connected",
                 context.Connection.RemoteIpAddress,
@@ -117,7 +119,7 @@ public class WebsocketManager
     /// <param name="socket">The websocket to send the message to.</param>
     /// <param name="topic">The topic of the message to send</param>
     /// <param name="message">The message to send</param>
-    private static async Task SendMessage(WebSocket socket, WebsocketTopic topic, string message)
+    private async Task SendMessage(WebSocket socket, WebsocketTopic topic, string message)
     {
         var topicMessage = new TopicMessage(topic, message);
         var bytes = new ArraySegment<byte>(Encoding.UTF8.GetBytes(topicMessage.ToJson()));
@@ -129,16 +131,42 @@ public class WebsocketManager
     /// </summary>
     /// <param name="socket">The websocket to send the message to.</param>
     /// <param name="message">The message to send.</param>
-    private static async Task SendMessage(WebSocket socket, ArraySegment<byte> message)
+    private async Task SendMessage(WebSocket socket, ArraySegment<byte> message)
     {
+        SemaphoreSlim? sendLock;
+        lock (_sendLocks)
+            _sendLocks.TryGetValue(socket, out sendLock);
+        if (sendLock == null || socket.State != WebSocketState.Open) return;
+
         try
         {
-            await socket.SendAsync(message, WebSocketMessageType.Text, true, SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
+            await sendLock.WaitAsync(SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
+            try
+            {
+                if (socket.State == WebSocketState.Open)
+                    await socket.SendAsync(message, WebSocketMessageType.Text, true,
+                        SigtermUtil.GetCancellationToken()).ConfigureAwait(false);
+            }
+            finally
+            {
+                sendLock.Release();
+            }
         }
         catch (Exception e)
         {
             Log.Debug(e, "Failed to send message to websocket");
+            RemoveSocket(socket);
+            try { socket.Abort(); }
+            catch { /* best-effort cleanup */ }
         }
+    }
+
+    private void RemoveSocket(WebSocket socket)
+    {
+        lock (_authenticatedSockets)
+            _authenticatedSockets.Remove(socket);
+        lock (_sendLocks)
+            _sendLocks.Remove(socket);
     }
 
     /// <summary>

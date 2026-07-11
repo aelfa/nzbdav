@@ -15,6 +15,7 @@ public class GetOverviewStatsController(
     DavDatabaseClient davDb,
     ActiveReadRegistry registry,
     LiveStatsBroadcaster liveStats,
+    MetricsWriter metricsWriter,
     ConfigManager configManager,
     IndexerHitTracker hitTracker
 ) : BaseApiController
@@ -92,7 +93,14 @@ public class GetOverviewStatsController(
                 .Select(h => new { h.Hour, h.Provider, h.Articles, h.BytesFetched, h.Errors, h.Retries, h.FailoverSaves, h.SumDurationMs })
                 .ToListAsync().ConfigureAwait(false);
 
-            liveTiles = BuildLiveTiles(articlesLastMinute: 0, errorsLastMinute: 0);
+            var sinceMinute = nowMs - OneMinute;
+            var recentStatuses = await metrics.SegmentFetches
+                .Where(x => x.At >= sinceMinute)
+                .Select(x => x.Status)
+                .ToListAsync().ConfigureAwait(false);
+            liveTiles = BuildLiveTiles(
+                recentStatuses.Count,
+                recentStatuses.Count(status => status != SegmentFetch.FetchStatus.Ok));
             throughput = BuildThroughputFromHourly(hours.Select(h => (h.Hour, h.Articles, h.Errors, h.BytesFetched)), sessions.Select(s => (s.EndedAt, s.BytesServed)), bucketSize);
             providers = BuildProvidersFromHourly(hours, windowStart, bucketSize, nowMs, nicknamesByHost);
             latency = new GetOverviewStatsResponse.LatencyBlock();
@@ -172,6 +180,21 @@ public class GetOverviewStatsController(
             Lifetime = lifetime,
             Records = records,
             Failover = failover,
+            MetricsHealth = BuildMetricsHealth(),
+        };
+    }
+
+    private GetOverviewStatsResponse.MetricsHealthBlock BuildMetricsHealth()
+    {
+        var stats = metricsWriter.Stats;
+        return new GetOverviewStatsResponse.MetricsHealthBlock
+        {
+            Queued = stats.QueuedFetches + stats.QueuedEvents +
+                     stats.QueuedSessions + stats.QueuedFailoverMisses,
+            Dropped = stats.DroppedFetches + stats.DroppedEvents +
+                      stats.DroppedSessions + stats.DroppedFailoverMisses,
+            LastSuccessfulFlushAtMs = stats.LastSuccessfulFlushAtMs,
+            LastFlushError = stats.LastFlushError,
         };
     }
 

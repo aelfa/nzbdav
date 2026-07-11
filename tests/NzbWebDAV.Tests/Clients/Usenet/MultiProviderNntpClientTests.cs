@@ -3,6 +3,7 @@ using NzbWebDAV.Clients.Usenet.Connections;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Models;
+using NzbWebDAV.Services.Metrics;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
 
@@ -109,6 +110,28 @@ public class MultiProviderNntpClientTests
             client.DecodedBodiesAsync(
                 ["segment"], onConnectionReadyAgain: null, cancellation.Token));
         Assert.Equal(1, connection.BatchRequests);
+    }
+
+    [Theory]
+    [InlineData(222)]
+    [InlineData(430)]
+    public async Task PipelinedBodyResponse_RecordsFetchMetric(int responseCode)
+    {
+        var writer = new MetricsWriter();
+        var connection = new ScriptedNntpClient
+        {
+            BatchResponseCode = 222,
+            SingularResponseCode = responseCode,
+        };
+        using var client = new MultiProviderNntpClient(
+            [CreateProvider(connection)], metricsWriter: writer);
+
+        await foreach (var result in client.DecodedBodiesPipelinedAsync(
+                           ["segment"], 1, CancellationToken.None))
+            if (result.Stream != null)
+                await result.Stream.DisposeAsync();
+
+        Assert.Equal(1, writer.Stats.QueuedFetches);
     }
 
     private static MultiConnectionNntpClient CreateProvider(INntpClient connection)

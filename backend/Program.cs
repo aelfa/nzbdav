@@ -133,8 +133,9 @@ class Program
                 .AddSingleton(logBufferSink)
                 .AddSingleton<BenchmarkGate>()
                 .AddHostedService<LogBroadcaster>()
-                .AddSingleton<ProviderUsageTracker>()
                 .AddSingleton<ActiveReadRegistry>()
+                .AddSingleton<ProviderUsageTracker>(sp =>
+                    new ProviderUsageTracker(sp.GetRequiredService<ActiveReadRegistry>()))
                 .AddSingleton<QueueItemSourceTracker>()
                 .AddSingleton<UsenetStreamingClient>()
                 .AddSingleton<LazyRarResolver>()

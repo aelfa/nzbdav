@@ -60,6 +60,10 @@ export default function Overview({ loaderData }: Route.ComponentProps) {
     const [stats, setStats] = useState<OverviewStatsResponse>(loaderData.stats);
     const [window, setWindow] = useState<OverviewWindow>("24h");
     const [editMode, setEditMode] = useState(false);
+    const [connectedAt, setConnectedAt] = useState<number | null>(null);
+    const [lastLiveStatsAt, setLastLiveStatsAt] = useState<number | null>(null);
+    const [transportFailed, setTransportFailed] = useState(false);
+    const [liveClock, setLiveClock] = useState(() => Date.now());
     const { order, save, reset } = useRowOrder(DEFAULT_ROW_ORDER);
 
     const liveTiles = stats.tiles;
@@ -104,7 +108,14 @@ export default function Overview({ loaderData }: Route.ComponentProps) {
                     bytesServedPerMinute: live.bytesServedPerMinute,
                 }
             }));
+            setLastLiveStatsAt(Date.now());
+            setTransportFailed(false);
         } catch { /* ignore */ }
+    }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => setLiveClock(Date.now()), 5_000);
+        return () => clearInterval(interval);
     }, []);
 
     useEffect(() => {
@@ -113,8 +124,13 @@ export default function Overview({ loaderData }: Route.ComponentProps) {
         function connect() {
             ws = new WebSocket(globalThis.location.origin.replace(/^http/, 'ws'));
             ws.onmessage = receiveMessage(onWsMessage);
-            ws.onopen = () => { ws.send(JSON.stringify(topicSubscriptions)); };
+            ws.onopen = () => {
+                setConnectedAt(Date.now());
+                ws.send(JSON.stringify(topicSubscriptions));
+            };
             ws.onclose = (event) => {
+                setConnectedAt(null);
+                setTransportFailed(true);
                 if (event.code === 1008) {
                     globalThis.location.assign("/login");
                     return;
@@ -126,6 +142,11 @@ export default function Overview({ loaderData }: Route.ComponentProps) {
         connect();
         return () => { disposed = true; ws?.close(); };
     }, [onWsMessage]);
+
+    const heartbeatAge = liveClock - (lastLiveStatsAt ?? connectedAt ?? liveClock);
+    const liveStatsStale = transportFailed || (connectedAt !== null && heartbeatAge > 15_000);
+    const metricsError = stats.metricsHealth?.lastFlushError;
+    const droppedMetrics = stats.metricsHealth?.dropped ?? 0;
 
     const rowContent = useMemo<Record<string, ReactNode>>(() => ({
         liveTiles: <LiveTiles tiles={liveTiles} />,
@@ -227,6 +248,22 @@ export default function Overview({ loaderData }: Route.ComponentProps) {
                     </div>
                 </div>
             </div>
+
+            {(liveStatsStale || metricsError || droppedMetrics > 0) && (
+                <div
+                    role="alert"
+                    className={`rounded border px-3 py-2 text-xs ${
+                        metricsError
+                            ? "border-red-500/50 bg-red-500/10 text-red-200"
+                            : "border-amber-600/50 bg-amber-500/10 text-amber-200"
+                    }`}>
+                    {metricsError
+                        ? `Metrics storage is unavailable: ${metricsError}`
+                        : droppedMetrics > 0
+                            ? `${droppedMetrics.toLocaleString()} metrics were dropped before they could be stored.`
+                            : "Live updates are reconnecting. Values below may be stale."}
+                </div>
+            )}
 
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                 <SortableContext items={order} strategy={verticalListSortingStrategy}>

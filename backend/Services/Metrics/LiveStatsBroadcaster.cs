@@ -31,7 +31,6 @@ public class LiveStatsBroadcaster(
 
     private readonly Queue<(long TsMs, long Total)> _byteSamples = new();
     private long _bytesServedLastMinute;
-    private string? _lastPayload;
 
     /// <summary>Bytes served downstream in the last 60 s (rolling window).</summary>
     public long BytesServedLastMinute => Interlocked.Read(ref _bytesServedLastMinute);
@@ -88,17 +87,6 @@ public class LiveStatsBroadcaster(
         };
 
         var payload = JsonSerializer.Serialize(snapshot, JsonOptions);
-        if (PayloadBodyEquals(payload, _lastPayload)) return;
-        _lastPayload = payload;
         await websocketManager.SendMessage(WebsocketTopic.LiveStats, payload).ConfigureAwait(false);
-    }
-
-    private static bool PayloadBodyEquals(string a, string? b)
-    {
-        if (b == null) return false;
-        var aEnd = a.LastIndexOf(",\"ts\":", StringComparison.Ordinal);
-        var bEnd = b.LastIndexOf(",\"ts\":", StringComparison.Ordinal);
-        if (aEnd < 0 || bEnd < 0) return a == b;
-        return a.AsSpan(0, aEnd).SequenceEqual(b.AsSpan(0, bEnd));
     }
 }

@@ -31,12 +31,24 @@ public class MetricsWriter : BackgroundService
     private readonly ConcurrentQueue<MetricEvent> _events = new();
     private readonly ConcurrentQueue<ReadSession> _sessions = new();
     private readonly ConcurrentQueue<FailoverMiss> _failoverMisses = new();
+    private readonly Func<MetricsDbContext> _contextFactory;
 
     private long _droppedFetches;
     private long _droppedEvents;
     private long _droppedSessions;
     private long _droppedFailoverMisses;
     private long _lastFlushLagMs;
+    private long _lastSuccessfulFlushAtMs;
+    private string? _lastFlushError;
+
+    public MetricsWriter() : this(static () => new MetricsDbContext())
+    {
+    }
+
+    internal MetricsWriter(Func<MetricsDbContext> contextFactory)
+    {
+        _contextFactory = contextFactory;
+    }
 
     public MetricsStats Stats => new(
         QueuedFetches: _fetches.Count,
@@ -47,7 +59,9 @@ public class MetricsWriter : BackgroundService
         DroppedEvents: Interlocked.Read(ref _droppedEvents),
         DroppedSessions: Interlocked.Read(ref _droppedSessions),
         DroppedFailoverMisses: Interlocked.Read(ref _droppedFailoverMisses),
-        LastFlushLagMs: Interlocked.Read(ref _lastFlushLagMs)
+        LastFlushLagMs: Interlocked.Read(ref _lastFlushLagMs),
+        LastSuccessfulFlushAtMs: Interlocked.Read(ref _lastSuccessfulFlushAtMs),
+        LastFlushError: Volatile.Read(ref _lastFlushError)
     );
 
     public void RecordFetch(SegmentFetch f)
@@ -137,18 +151,33 @@ public class MetricsWriter : BackgroundService
         if (fetches.Count == 0 && events.Count == 0 && sessions.Count == 0 && failoverMisses.Count == 0) return;
 
         var started = DateTime.UtcNow;
-        await using var db = new MetricsDbContext();
-        await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
+        try
+        {
+            await using var db = _contextFactory();
+            await using var tx = await db.Database.BeginTransactionAsync().ConfigureAwait(false);
 
-        if (fetches.Count > 0) db.SegmentFetches.AddRange(fetches);
-        if (events.Count > 0) db.MetricEvents.AddRange(events);
-        if (sessions.Count > 0) db.ReadSessions.AddRange(sessions);
-        if (failoverMisses.Count > 0) db.FailoverMisses.AddRange(failoverMisses);
+            if (fetches.Count > 0) db.SegmentFetches.AddRange(fetches);
+            if (events.Count > 0) db.MetricEvents.AddRange(events);
+            if (sessions.Count > 0) db.ReadSessions.AddRange(sessions);
+            if (failoverMisses.Count > 0) db.FailoverMisses.AddRange(failoverMisses);
 
-        await db.SaveChangesAsync().ConfigureAwait(false);
-        await tx.CommitAsync().ConfigureAwait(false);
+            await db.SaveChangesAsync().ConfigureAwait(false);
+            await tx.CommitAsync().ConfigureAwait(false);
 
-        Interlocked.Exchange(ref _lastFlushLagMs, (long)(DateTime.UtcNow - started).TotalMilliseconds);
+            var completed = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            Interlocked.Exchange(ref _lastFlushLagMs, (long)(DateTime.UtcNow - started).TotalMilliseconds);
+            Interlocked.Exchange(ref _lastSuccessfulFlushAtMs, completed);
+            Interlocked.Exchange(ref _lastFlushError, null);
+        }
+        catch (Exception ex)
+        {
+            Requeue(_fetches, fetches);
+            Requeue(_events, events);
+            Requeue(_sessions, sessions);
+            Requeue(_failoverMisses, failoverMisses);
+            Interlocked.Exchange(ref _lastFlushError, ex.GetBaseException().Message);
+            throw;
+        }
     }
 
     private static List<T> Drain<T>(ConcurrentQueue<T> q)
@@ -157,6 +186,14 @@ public class MetricsWriter : BackgroundService
         while (q.TryDequeue(out var item)) list.Add(item);
         return list;
     }
+
+    private static void Requeue<T>(ConcurrentQueue<T> queue, IEnumerable<T> items)
+    {
+        foreach (var item in items)
+            queue.Enqueue(item);
+    }
+
+    internal Task FlushNowAsync() => FlushAsync();
 
     public record MetricsStats(
         int QueuedFetches,
@@ -167,6 +204,8 @@ public class MetricsWriter : BackgroundService
         long DroppedEvents,
         long DroppedSessions,
         long DroppedFailoverMisses,
-        long LastFlushLagMs
+        long LastFlushLagMs,
+        long LastSuccessfulFlushAtMs,
+        string? LastFlushError
     );
 }

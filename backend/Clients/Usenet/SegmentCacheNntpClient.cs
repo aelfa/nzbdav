@@ -2,7 +2,10 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using NzbWebDAV.Database.Models.Metrics;
 using NzbWebDAV.Clients.Usenet.Models;
+using NzbWebDAV.Services;
+using NzbWebDAV.Services.Metrics;
 using NzbWebDAV.Streams;
 using Serilog;
 using UsenetSharp.Models;
@@ -12,18 +15,29 @@ namespace NzbWebDAV.Clients.Usenet;
 
 public sealed class SegmentCacheNntpClient : WrappingNntpClient
 {
+    public const string CacheProviderName = "segment-cache";
+
     private readonly string _dir;
     private readonly long _maxBytes;
+    private readonly ProviderUsageTracker? _usageTracker;
+    private readonly MetricsWriter? _metricsWriter;
     private readonly ConcurrentDictionary<string, CacheEntry> _index = new();
     private readonly object _evictLock = new();
     private long _currentBytes;
 
     private static readonly JsonSerializerOptions HeaderJsonOptions = new() { IncludeFields = true };
 
-    public SegmentCacheNntpClient(INntpClient inner, string cacheDir, long maxBytes) : base(inner)
+    public SegmentCacheNntpClient(
+        INntpClient inner,
+        string cacheDir,
+        long maxBytes,
+        ProviderUsageTracker? usageTracker = null,
+        MetricsWriter? metricsWriter = null) : base(inner)
     {
         _dir = cacheDir;
         _maxBytes = maxBytes;
+        _usageTracker = usageTracker;
+        _metricsWriter = metricsWriter;
         Directory.CreateDirectory(_dir);
         LoadIndex();
     }
@@ -42,6 +56,7 @@ public sealed class SegmentCacheNntpClient : WrappingNntpClient
         string id = segmentId;
         if (TryServeFromCache(id, out var cached))
         {
+            RecordCacheHit();
             onConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
             return cached!;
         }
@@ -67,6 +82,7 @@ public sealed class SegmentCacheNntpClient : WrappingNntpClient
         string id = segmentId;
         if (TryServeFromCache(id, out var cached))
         {
+            RecordCacheHit();
             exclusiveConnection.OnConnectionReadyAgain?.Invoke(ArticleBodyResult.Retrieved);
             return cached!;
         }
@@ -78,13 +94,15 @@ public sealed class SegmentCacheNntpClient : WrappingNntpClient
     private async Task<UsenetDecodedBodyResponse> WrapForCachingAsync(
         string id, UsenetDecodedBodyResponse response, CancellationToken ct)
     {
-        if (response.ResponseType != UsenetResponseType.ArticleRetrievedBodyFollows)
+        if (response.ResponseType != UsenetResponseType.ArticleRetrievedBodyFollows ||
+            response.Stream == null)
             return response;
 
+        var source = response.Stream;
         UsenetYencHeader? header = null;
         try
         {
-            header = await response.Stream.GetYencHeadersAsync(ct).ConfigureAwait(false);
+            header = await source.GetYencHeadersAsync(ct).ConfigureAwait(false);
         }
         catch
         {
@@ -92,7 +110,7 @@ public sealed class SegmentCacheNntpClient : WrappingNntpClient
         }
 
         if (header == null) return response;
-        return response with { Stream = new WriteThroughStream(response.Stream, header, BlobPath(Hash(id)), OnFinalized) };
+        return response with { Stream = new WriteThroughStream(source, header, BlobPath(Hash(id)), OnFinalized) };
     }
 
     private bool TryServeFromCache(string id, out UsenetDecodedBodyResponse? response)
@@ -129,6 +147,21 @@ public sealed class SegmentCacheNntpClient : WrappingNntpClient
             Drop(hash);
             return false;
         }
+    }
+
+    private void RecordCacheHit()
+    {
+        _usageTracker?.RecordSuccess(CacheProviderName);
+        _metricsWriter?.RecordFetch(new SegmentFetch
+        {
+            At = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            Provider = CacheProviderName,
+            ReadSessionId = MultiProviderNntpClient.CurrentReadSessionId,
+            Bytes = 0,
+            DurationMs = 0,
+            Status = SegmentFetch.FetchStatus.Ok,
+            Retries = 0,
+        });
     }
 
     private void OnFinalized(string hash, long size)

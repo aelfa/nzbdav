@@ -79,17 +79,31 @@ if [ -z "${CONFIG_PATH}" ]; then
     export CONFIG_PATH="/config"
 fi
 
-# Recursively update permissions to all $CONFIG_PATH files if needed
+# Recursively update permissions when either database or its WAL files were
+# created by a different container user.
 chown "$PUID:$PGID" "$CONFIG_PATH"
-if [ -f "$CONFIG_PATH/db.sqlite" ]; then
-    DB_UID=$(stat -c '%u' "$CONFIG_PATH/db.sqlite")
-    DB_GID=$(stat -c '%g' "$CONFIG_PATH/db.sqlite")
-
-    if [ "$DB_UID" -ne "$PUID" ] || [ "$DB_GID" -ne "$PGID" ]; then
-        echo "$CONFIG_PATH/db.sqlite ownership mismatch: (uid:$DB_UID gid:$DB_GID) vs expected (uid:$PUID gid:$PGID)"
-        echo "Updating ownership of $CONFIG_PATH/* to (uid:$PUID gid:$PGID)"
-        chown -R "$PUID:$PGID" "$CONFIG_PATH"
+OWNERSHIP_MISMATCH=""
+for DB_FILE in \
+    "$CONFIG_PATH/db.sqlite" \
+    "$CONFIG_PATH/db.sqlite-wal" \
+    "$CONFIG_PATH/db.sqlite-shm" \
+    "$CONFIG_PATH/metrics.sqlite" \
+    "$CONFIG_PATH/metrics.sqlite-wal" \
+    "$CONFIG_PATH/metrics.sqlite-shm"; do
+    if [ ! -e "$DB_FILE" ]; then
+        continue
     fi
+    DB_UID=$(stat -c '%u' "$DB_FILE")
+    DB_GID=$(stat -c '%g' "$DB_FILE")
+    if [ "$DB_UID" -ne "$PUID" ] || [ "$DB_GID" -ne "$PGID" ]; then
+        echo "$DB_FILE ownership mismatch: (uid:$DB_UID gid:$DB_GID) vs expected (uid:$PUID gid:$PGID)"
+        OWNERSHIP_MISMATCH="yes"
+        break
+    fi
+done
+if [ -n "$OWNERSHIP_MISMATCH" ]; then
+    echo "Updating ownership of $CONFIG_PATH/* to (uid:$PUID gid:$PGID)"
+    chown -R "$PUID:$PGID" "$CONFIG_PATH"
 fi
 
 # Run backend database migration

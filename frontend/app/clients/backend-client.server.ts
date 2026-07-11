@@ -680,6 +680,12 @@ export type OverviewStatsResponse = {
         bestHourAt: number | null,
     },
     failover: FailoverBlock,
+    metricsHealth: {
+        queued: number,
+        dropped: number,
+        lastSuccessfulFlushAtMs: number,
+        lastFlushError: string | null,
+    },
 }
 
 export type FailoverBlock = {

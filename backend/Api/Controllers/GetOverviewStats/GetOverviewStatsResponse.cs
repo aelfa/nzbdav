@@ -21,6 +21,7 @@ public class GetOverviewStatsResponse
     public LifetimeBlock Lifetime { get; init; } = new();
     public RecordsBlock Records { get; init; } = new();
     public FailoverBlock Failover { get; init; } = new();
+    public MetricsHealthBlock MetricsHealth { get; init; } = new();
 
     public class LiveTiles
     {
@@ -28,6 +29,14 @@ public class GetOverviewStatsResponse
         public long ArticlesPerMinute { get; init; }
         public long ErrorsPerMinute { get; init; }
         public long BytesServedPerMinute { get; init; }
+    }
+
+    public class MetricsHealthBlock
+    {
+        public long Queued { get; init; }
+        public long Dropped { get; init; }
+        public long LastSuccessfulFlushAtMs { get; init; }
+        public string? LastFlushError { get; init; }
     }
 
     public class ThroughputPoint

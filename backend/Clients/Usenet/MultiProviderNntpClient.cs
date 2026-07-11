@@ -24,6 +24,7 @@ public class MultiProviderNntpClient(
 {
     private readonly ProviderUsageTracker _usageTracker = usageTracker ?? new ProviderUsageTracker();
     private static readonly AsyncLocal<Guid?> ReadSessionScope = new();
+    internal static Guid? CurrentReadSessionId => ReadSessionScope.Value;
 
     /// <summary>
     /// Tag the current async flow with a read-session id so SegmentFetch rows
@@ -710,19 +711,24 @@ public class MultiProviderNntpClient(
         var primary = orderedProviders.Count > 0 ? orderedProviders[0] : null;
         if (primary == null) yield break;
         var effectiveDepth = ResolveDepth(primary, depth);
+        var stopwatch = Stopwatch.StartNew();
 
         await foreach (var result in primary.DecodedBodiesPipelinedAsync(segmentIds, effectiveDepth, cancellationToken)
                            .WithCancellation(cancellationToken).ConfigureAwait(false))
         {
+            stopwatch.Stop();
             if (result.Found)
             {
                 _usageTracker.RecordSuccess(primary.Host);
+                RecordFetch(primary.Host, SegmentFetch.FetchStatus.Ok, stopwatch.ElapsedMilliseconds, 0);
                 yield return WrapPipelinedBody(result, primary.Host);
             }
             else
             {
+                RecordFetch(primary.Host, SegmentFetch.FetchStatus.Missing, stopwatch.ElapsedMilliseconds, 0);
                 yield return result;
             }
+            stopwatch.Restart();
         }
     }
 
@@ -736,19 +742,24 @@ public class MultiProviderNntpClient(
         var primary = orderedProviders.Count > 0 ? orderedProviders[0] : null;
         if (primary == null) yield break;
         var effectiveDepth = ResolveDepth(primary, depth);
+        var stopwatch = Stopwatch.StartNew();
 
         await foreach (var result in primary.DecodedArticlesPipelinedAsync(segmentIds, effectiveDepth, cancellationToken)
                            .WithCancellation(cancellationToken).ConfigureAwait(false))
         {
+            stopwatch.Stop();
             if (result.Found)
             {
                 _usageTracker.RecordSuccess(primary.Host);
+                RecordFetch(primary.Host, SegmentFetch.FetchStatus.Ok, stopwatch.ElapsedMilliseconds, 0);
                 yield return WrapPipelinedArticle(result, primary.Host);
             }
             else
             {
+                RecordFetch(primary.Host, SegmentFetch.FetchStatus.Missing, stopwatch.ElapsedMilliseconds, 0);
                 yield return result;
             }
+            stopwatch.Restart();
         }
     }
 

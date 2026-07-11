@@ -130,6 +130,7 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
             } else if (connectionFailures === 0) {
                 logConnectionFailure(`Could not connect to backend websocket at ${url}`);
             }
+            disconnectBrowserClients(subscriptions, lastMessage);
             scheduleReconnect();
         };
     }
@@ -143,6 +144,20 @@ export function initializeWebsocketClient(subscriptions: Map<string, Set<WebSock
     }
 
     connect();
+}
+
+export function disconnectBrowserClients(
+    subscriptions: Map<string, Set<WebSocket>>,
+    lastMessage: Map<string, string>,
+) {
+    lastMessage.clear();
+    const clients = new Set<WebSocket>();
+    subscriptions.forEach(topicClients => topicClients.forEach(client => clients.add(client)));
+    clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.close(1012, "Backend websocket reconnecting");
+        }
+    });
 }
 
 function getBackendWebsocketUrl() {

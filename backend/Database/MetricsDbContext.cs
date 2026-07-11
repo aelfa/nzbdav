@@ -13,7 +13,7 @@ namespace NzbWebDAV.Database;
 /// are stored as unix milliseconds (INTEGER) so charts can bucket by minute/hour
 /// without per-row conversion overhead.
 /// </summary>
-public sealed class MetricsDbContext() : DbContext(Options.Value)
+public sealed class MetricsDbContext : DbContext
 {
     public static string DatabaseFilePath => Path.Join(DavDatabaseContext.ConfigPath, "metrics.sqlite");
 
@@ -24,6 +24,14 @@ public sealed class MetricsDbContext() : DbContext(Options.Value)
             .ReplaceService<IMigrationsSqlGenerator, SqliteMigrationsSqlGenerator<SqliteMigrationsSqlGenerator>>()
             .Options
     );
+
+    public MetricsDbContext() : base(Options.Value)
+    {
+    }
+
+    internal MetricsDbContext(DbContextOptions<MetricsDbContext> options) : base(options)
+    {
+    }
 
     public DbSet<SegmentFetch> SegmentFetches => Set<SegmentFetch>();
     public DbSet<ReadSession> ReadSessions => Set<ReadSession>();

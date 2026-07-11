@@ -46,7 +46,9 @@ public class UsenetStreamingClient : WrappingNntpClient
             return new SegmentCacheNntpClient(
                 downloadingClient,
                 configManager.GetSegmentCachePath(),
-                configManager.GetSegmentCacheMaxBytes()
+                configManager.GetSegmentCacheMaxBytes(),
+                usageTracker,
+                metricsWriter
             );
         }
         catch (Exception e)
