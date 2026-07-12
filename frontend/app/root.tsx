@@ -18,6 +18,7 @@ import { LeftNavigation } from "./routes/_index/components/left-navigation/left-
 import { PageLayout } from "./routes/_index/components/page-layout/page-layout";
 import { Loading } from "./routes/_index/components/loading/loading";
 import { getAppVersion } from "./utils/version.server";
+import { checkForUpdate } from "./utils/update-check.server";
 import { backendClient } from "./clients/backend-client.server";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -33,9 +34,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     "play.watchdog-enabled",
   ]);
 
+  const version = await getAppVersion();
+
   return {
     useLayout: true,
-    version: await getAppVersion(),
+    version,
+    updateAvailable: await checkForUpdate(version),
     isFrontendAuthDisabled: IS_FRONTEND_AUTH_DISABLED,
     hasUsenetProviders: hasConfiguredUsenetProviders(
       config.find(item => item.configName === "usenet.providers")?.configValue
@@ -83,6 +87,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
   const {
     useLayout,
     version,
+    updateAvailable,
     isFrontendAuthDisabled,
     hasUsenetProviders,
     isWatchdogEnabled,
@@ -107,6 +112,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
         leftNavChild={
           <LeftNavigation
             version={version}
+            updateAvailable={updateAvailable}
             isFrontendAuthDisabled={isFrontendAuthDisabled}
             hasUsenetProviders={hasUsenetProviders}
             isWatchdogEnabled={isWatchdogEnabled} />

@@ -6,6 +6,7 @@ import { Icon } from "~/components/ui";
 
 export type LeftNavigationProps = {
     version?: string,
+    updateAvailable?: { latestVersion: string; releaseUrl: string } | null,
     isFrontendAuthDisabled?: boolean,
     hasUsenetProviders?: boolean,
     isWatchdogEnabled?: boolean,
@@ -13,6 +14,7 @@ export type LeftNavigationProps = {
 
 export function LeftNavigation({
     version,
+    updateAvailable,
     isFrontendAuthDisabled,
     hasUsenetProviders,
     isWatchdogEnabled,
@@ -50,6 +52,16 @@ export function LeftNavigation({
                     </Link>
                 </div>
                 <div className="font-mono text-[11px]">{version || "unknown"}</div>
+                {updateAvailable && (
+                    <Link
+                        to={updateAvailable.releaseUrl}
+                        className="mt-1 block text-[11px] text-blue-400 hover:text-blue-300"
+                        target="_blank"
+                        rel="noreferrer"
+                    >
+                        Update available · v{updateAvailable.latestVersion}
+                    </Link>
+                )}
                 {!isFrontendAuthDisabled && (
                     <Form method="post" action="/logout">
                         <input name="confirm" value="true" type="hidden" />
