@@ -30,6 +30,28 @@ export function Maintenance({ savedConfig, config, setNewConfig }: MaintenancePr
                 </div>
                 <hr />
                 <div className="space-y-2">
+                    <label className="block text-sm text-slate-300" htmlFor="history-retention-days">
+                        SAB History Retention (days)
+                    </label>
+                    <Input
+                        id="history-retention-days"
+                        type="number"
+                        min={0}
+                        aria-describedby="history-retention-days-help"
+                        value={config["database.history-retention-days"] ?? "90"}
+                        onChange={e => setNewConfig({
+                            ...config,
+                            "database.history-retention-days": e.target.value,
+                        })}
+                        className="max-w-xs"
+                    />
+                    <p className="text-xs leading-relaxed text-slate-400" id="history-retention-days-help">
+                        Automatically prune SAB history rows older than this many days. Mounted WebDAV content is preserved.
+                        Set to 0 to keep everything. Can also be set with DATABASE_HISTORY_RETENTION_DAYS.
+                    </p>
+                </div>
+                <hr />
+                <div className="space-y-2">
                     <label className="block text-sm text-slate-300" htmlFor="healthcheck-retention-days">
                         Health-Check History Retention (days)
                     </label>
@@ -156,6 +178,7 @@ export function Maintenance({ savedConfig, config, setNewConfig }: MaintenancePr
 
 export function isMaintenanceSettingsUpdated(config: Record<string, string>, newConfig: Record<string, string>) {
     return config["db.is-startup-vacuum-enabled"] !== newConfig["db.is-startup-vacuum-enabled"]
+        || config["database.history-retention-days"] !== newConfig["database.history-retention-days"]
         || config["database.healthcheck-retention-days"] !== newConfig["database.healthcheck-retention-days"]
         || config["maintenance.remove-orphaned-schedule-enabled"] !== newConfig["maintenance.remove-orphaned-schedule-enabled"]
         || config["maintenance.remove-orphaned-schedule-time"] !== newConfig["maintenance.remove-orphaned-schedule-time"];

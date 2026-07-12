@@ -822,6 +822,19 @@ public class ConfigManager
     }
 
     /// <summary>
+    /// Days to keep SAB history rows. 0 disables age-based pruning.
+    /// Config key wins over DATABASE_HISTORY_RETENTION_DAYS; default is 90.
+    /// Automatic retention never deletes mounted WebDAV content.
+    /// </summary>
+    public int GetHistoryRetentionDays()
+    {
+        return GetRetentionDaysSetting(
+            "database.history-retention-days",
+            "DATABASE_HISTORY_RETENTION_DAYS",
+            defaultValue: 90);
+    }
+
+    /// <summary>
     /// Days to keep health-check result rows. 0 disables age-based pruning.
     /// Config key wins over DATABASE_HEALTHCHECK_RETENTION_DAYS; default is 30.
     /// </summary>
