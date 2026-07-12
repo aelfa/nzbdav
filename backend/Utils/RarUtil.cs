@@ -1,6 +1,7 @@
 ﻿using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Streams;
+using SharpCompress.Common;
 using SharpCompress.Common.Rar.Headers;
 using SharpCompress.IO;
 using SharpCompress.Readers;
@@ -54,9 +55,9 @@ public static class RarUtil
             }
             return null;
         }
-        catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException missingArticleException))
+        catch (Exception e) when (TryMapHeaderParseFailure(e, stream, out var mapped))
         {
-            throw missingArticleException;
+            throw mapped;
         }
     }
 
@@ -97,9 +98,9 @@ public static class RarUtil
             }
             return headers;
         }
-        catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException missingArticleException))
+        catch (Exception e) when (TryMapHeaderParseFailure(e, stream, out var mapped))
         {
-            throw missingArticleException;
+            throw mapped;
         }
     }
 
@@ -154,9 +155,68 @@ public static class RarUtil
 
             return headers;
         }
-        catch (Exception e) when (e.TryGetCausingException(out UsenetArticleNotFoundException missingArticleException))
+        catch (Exception e) when (TryMapHeaderParseFailure(e, stream, out var mapped))
         {
-            throw missingArticleException;
+            throw mapped;
+        }
+    }
+
+    // Maps operational header-parse failures to typed exceptions so WebDAV
+    // middleware can log a single human-readable ERROR without a stack dump.
+    // Unexpected exceptions are left unmapped and rethrown by the caller.
+    internal static bool TryMapHeaderParseFailure(Exception e, Stream stream, out Exception mapped)
+    {
+        if (e.TryGetCausingException(out UsenetArticleNotFoundException? missingArticle))
+        {
+            mapped = missingArticle!;
+            return true;
+        }
+
+        if (e.TryGetCausingException(out ArgumentOutOfRangeException? seekPastEnd))
+        {
+            var offset = FormatActualValue(seekPastEnd!.ActualValue);
+            var length = TryGetStreamLength(stream);
+            mapped = new CorruptRarException(
+                $"Failed to parse RAR volume headers (seek past stream end at offset {offset}; stream length {length})");
+            return true;
+        }
+
+        if (e.TryGetCausingException(out InvalidFormatException? invalidFormat))
+        {
+            mapped = new CorruptRarException(
+                $"Failed to parse RAR volume headers: {invalidFormat!.Message}");
+            return true;
+        }
+
+        if (e.TryGetCausingException(out EndOfStreamException? _))
+        {
+            mapped = new CorruptRarException(
+                "Failed to parse RAR volume headers: unexpected end of stream");
+            return true;
+        }
+
+        mapped = null!;
+        return false;
+    }
+
+    private static string FormatActualValue(object? actualValue) =>
+        actualValue switch
+        {
+            null => "unknown",
+            long l => l.ToString(),
+            int i => i.ToString(),
+            _ => actualValue.ToString() ?? "unknown",
+        };
+
+    private static string TryGetStreamLength(Stream stream)
+    {
+        try
+        {
+            return stream.CanSeek ? stream.Length.ToString() : "unknown";
+        }
+        catch
+        {
+            return "unknown";
         }
     }
 }

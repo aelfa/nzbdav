@@ -277,16 +277,15 @@ public class ExceptionMiddleware(RequestDelegate next, ConfigManager configManag
 
     private static bool IsKnownDownloadException(Exception e, out string message)
     {
-        if (e.TryGetCausingException<RetryableDownloadException>(out var retryable))
+        // Walk the chain so wrappers (e.g. AggregateException / Task) still
+        // match queue-side helpers — including bare InvalidFormatException.
+        for (var current = e; current != null; current = current.InnerException)
         {
-            message = retryable!.Message;
-            return true;
-        }
-
-        if (e.TryGetCausingException<NonRetryableDownloadException>(out var nonRetryable))
-        {
-            message = nonRetryable!.Message;
-            return true;
+            if (current.IsRetryableDownloadException() || current.IsNonRetryableDownloadException())
+            {
+                message = current.Message;
+                return true;
+            }
         }
 
         message = string.Empty;

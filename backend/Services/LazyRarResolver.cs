@@ -3,6 +3,7 @@ using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Utils;
@@ -154,7 +155,7 @@ public class LazyRarResolver(UsenetStreamingClient usenetClient, ConfigManager c
             meta.ArchivePassword,
             h => h.GetFileName() == pathInArchive,
             ct).ConfigureAwait(false)
-            ?? throw new InvalidDataException(
+            ?? throw new CorruptRarException(
                 $"Lazy RAR resolution: continuation header for '{pathInArchive}' not found in trailing volume.");
 
         var dataStart = match.GetDataStartPosition();
