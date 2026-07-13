@@ -43,6 +43,11 @@ jobs:
         working-directory: frontend
         run: npm run typecheck
 
+      # Same production build Docker uses; catches .server import / bundler errors typecheck misses.
+      - name: Build
+        working-directory: frontend
+        run: npm run build && npm run build:server
+
       - name: Test frontend with coverage
         working-directory: frontend
         run: npm run test:coverage

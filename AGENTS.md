@@ -97,7 +97,7 @@ Open `http://localhost:5173` (dev) or `http://localhost:3000` (production build)
 
 ```bash
 # Frontend
-cd frontend && npm run typecheck && npm test
+cd frontend && npm run typecheck && npm run build && npm test
 
 # Backend (from repository root)
 dotnet test tests/NzbWebDAV.Tests/NzbWebDAV.Tests.csproj -c Release
@@ -234,7 +234,7 @@ Do not accumulate a large uncommitted diff across unrelated areas.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PRs and pushes to `main` | Frontend typecheck/tests + backend build/tests |
+| `ci.yml` | PRs and pushes to `main` | Frontend lint/typecheck/build/tests + backend build/tests |
 | `codeql.yml` | PRs, pushes to `main`, and weekly schedule | CodeQL security analysis for C#, TypeScript, and GitHub Actions |
 | `pre-release.yml` | Pushes to `main` (except release commits) | Publishes `ghcr.io/.../nzbdav:dev` |
 | `release.yml` | Push to `main` | release-please versioning; publishes Docker images when a release is created |
