@@ -48,36 +48,44 @@ export const TopNavigation = memo(function TopNavigation(props: TopNavigationPro
       <div className="navbar-end items-center gap-2 px-2 md:px-4">
         <LiveUsenetConnections hasUsenetProviders={!!hasUsenetProviders} />
         <div className="dropdown dropdown-end">
-          <button
-            type="button"
-            tabIndex={0}
+          <div
             className={
               hasUpdate
-                ? "btn btn-primary btn-sm gap-2"
-                : "btn btn-ghost h-9 min-h-9 gap-2 rounded-full border border-base-content/10 bg-base-200/70 px-3 hover:border-base-content/20 hover:bg-base-200"
+                ? undefined
+                : "rounded-box bg-gradient-to-br from-primary via-secondary to-accent p-px"
             }
-            aria-label={hasUpdate ? "Update available" : "App menu"}
           >
-            {hasUpdate ? (
-              <>
-                <Icon name="arrow_circle_up" className="!text-[20px]" />
-                <span className="text-sm font-semibold">Update available</span>
-              </>
-            ) : (
-              <>
-                <span className="inline-flex items-center gap-2">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-base-content/40">
-                    Stable
+            <button
+              type="button"
+              tabIndex={0}
+              className={
+                hasUpdate
+                  ? "btn btn-primary h-10 min-h-10 gap-2 rounded-box px-3"
+                  : "btn btn-ghost h-10 min-h-10 gap-2 rounded-[calc(var(--radius-box)-1px)] border-0 bg-base-200 px-3 hover:bg-base-200"
+              }
+              aria-label={hasUpdate ? "Update available" : "App menu"}
+            >
+              {hasUpdate ? (
+                <>
+                  <Icon name="arrow_circle_up" className="!text-[20px]" />
+                  <span className="text-sm font-semibold">Update available</span>
+                </>
+              ) : (
+                <>
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-base-content/40">
+                      Stable
+                    </span>
+                    <span className="h-3 w-px bg-base-content/15" aria-hidden="true" />
+                    <span className="font-mono text-sm tracking-tight text-base-content/80">
+                      {displayVersion}
+                    </span>
                   </span>
-                  <span className="h-3 w-px bg-base-content/15" aria-hidden="true" />
-                  <span className="font-mono text-sm tracking-tight text-base-content/80">
-                    {displayVersion}
-                  </span>
-                </span>
-                <Icon name="expand_more" className="!text-[18px] text-base-content/50" />
-              </>
-            )}
-          </button>
+                  <Icon name="expand_more" className="!text-[18px] text-base-content/50" />
+                </>
+              )}
+            </button>
+          </div>
           <ul
             tabIndex={0}
             className="dropdown-content menu z-50 mt-2 w-64 rounded-box border border-base-content/10 bg-base-200 p-2 shadow-lg"

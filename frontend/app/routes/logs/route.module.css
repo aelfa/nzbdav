@@ -1,11 +1,12 @@
 /* Dense log stream layout — chrome migrated to daisyUI/Tailwind */
 
 .listWrap {
-    min-height: 360px;
+    min-height: 0;
 }
 
 .list {
     flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;

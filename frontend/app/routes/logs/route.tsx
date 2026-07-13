@@ -283,8 +283,8 @@ export default function Logs({ loaderData }: Route.ComponentProps) {
     );
 
     return (
-        <div className="flex min-h-full min-w-full flex-col gap-4 px-4 py-4 text-sm text-base-content/70 md:px-8">
-            <div className="card border border-base-content/10 bg-base-100 shadow-sm">
+        <div className="flex h-full min-h-0 min-w-full flex-col gap-4 overflow-hidden px-4 py-4 text-sm text-base-content/70 md:px-8">
+            <div className="card shrink-0 border border-base-content/10 bg-base-100 shadow-sm">
                 <div className="card-body gap-4 p-4 md:p-6">
                     <div className="flex flex-wrap items-start justify-between gap-4">
                         <div>
@@ -390,7 +390,7 @@ export default function Logs({ loaderData }: Route.ComponentProps) {
                 </div>
             </div>
 
-            <div className={`card relative flex min-h-[360px] flex-1 flex-col overflow-hidden border border-base-content/10 bg-base-100 shadow-sm ${styles.listWrap}`}>
+            <div className={`card relative flex min-h-0 flex-1 flex-col overflow-hidden border border-base-content/10 bg-base-100 shadow-sm ${styles.listWrap}`}>
                 {entries.length === 0 ? (
                     <div className="card-body items-center justify-center gap-1 py-16 text-center text-base-content/50">
                         <div className="text-sm text-base-content/70">No log entries to show.</div>

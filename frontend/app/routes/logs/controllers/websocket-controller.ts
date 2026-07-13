@@ -19,10 +19,6 @@ export function useLogsWebsocket(
         const connect = () => {
             onStatus("connecting");
             ws = new WebSocket(window.location.origin.replace(/^http/, "ws"));
-            ws.onopen = () => {
-                ws?.send(JSON.stringify(topicSubscriptions));
-                onStatus("live");
-            };
             ws.onmessage = receiveMessage((topic, message) => {
                 if (topic !== LOG_TOPIC) return;
                 try {
@@ -32,6 +28,10 @@ export function useLogsWebsocket(
                     // ignore malformed payloads
                 }
             });
+            ws.onopen = () => {
+                ws?.send(JSON.stringify(topicSubscriptions));
+                onStatus("live");
+            };
             ws.onclose = () => {
                 if (disposed) return;
                 onStatus("reconnecting");

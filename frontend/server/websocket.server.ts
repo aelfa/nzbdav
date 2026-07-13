@@ -11,50 +11,69 @@ function initializeWebsocketServer(wss: WebSocketServer) {
     initializeWebsocketClient(subscriptions, lastMessage);
 
     // authenticate new websocket sessions
-    wss.on("connection", async (ws: WebSocket, request: IncomingMessage) => {
-        try {
-            // ensure user is logged in
-            if (!await isAuthenticated(request)) {
-                logger.debug(`Rejected unauthenticated websocket connection from ${request.socket.remoteAddress ?? "unknown IP"}`);
-                ws.close(1008, "Unauthorized");
+    wss.on("connection", (ws: WebSocket, request: IncomingMessage) => {
+        // Buffer early frames and attach handlers before awaiting auth so the
+        // browser's immediate onopen subscription is not dropped.
+        let authenticated = false;
+        let closed = false;
+        const pendingMessages: WebSocket.MessageEvent[] = [];
+
+        const applySubscription = (event: WebSocket.MessageEvent) => {
+            try {
+                const topics = JSON.parse(event.data.toString());
+                websockets.set(ws, topics);
+                for (const topic in topics) {
+                    const topicSubscriptions = subscriptions.get(topic);
+                    if (topicSubscriptions) topicSubscriptions.add(ws);
+                    else subscriptions.set(topic, new Set<WebSocket>([ws]));
+                    if (topics[topic] === 'state') {
+                        const messageToSend = lastMessage.get(topic);
+                        if (messageToSend) ws.send(messageToSend);
+                    }
+                }
+            } catch {
+                ws.close(1003, "Could not process topic subscription. If recently updated, try refreshing the page.");
+            }
+        };
+
+        ws.onmessage = (event: WebSocket.MessageEvent) => {
+            if (!authenticated) {
+                pendingMessages.push(event);
                 return;
             }
+            applySubscription(event);
+        };
 
-            // handle topic subscription
-            ws.onmessage = (event: WebSocket.MessageEvent) => {
-                try {
-                    const topics = JSON.parse(event.data.toString());
-                    websockets.set(ws, topics);
-                    for (const topic in topics) {
-                        const topicSubscriptions = subscriptions.get(topic);
-                        if (topicSubscriptions) topicSubscriptions.add(ws);
-                        else subscriptions.set(topic, new Set<WebSocket>([ws]));
-                        if (topics[topic] === 'state') {
-                            const messageToSend = lastMessage.get(topic);
-                            if (messageToSend) ws.send(messageToSend);
-                        }
-                    }
-                } catch {
-                    ws.close(1003, "Could not process topic subscription. If recently updated, try refreshing the page.");
+        ws.onclose = () => {
+            closed = true;
+            pendingMessages.length = 0;
+            const topics = websockets.get(ws);
+            if (topics) {
+                websockets.delete(ws);
+                for (const topic in topics) {
+                    const topicSubscriptions = subscriptions.get(topic);
+                    if (topicSubscriptions) topicSubscriptions.delete(ws);
                 }
-            };
+            }
+        };
 
-            // unsubscribe from topics
-            ws.onclose = () => {
-                const topics = websockets.get(ws);
-                if (topics) {
-                    websockets.delete(ws);
-                    for (const topic in topics) {
-                        const topicSubscriptions = subscriptions.get(topic);
-                        if (topicSubscriptions) topicSubscriptions.delete(ws);
-                    }
+        void (async () => {
+            try {
+                if (!await isAuthenticated(request)) {
+                    logger.debug(`Rejected unauthenticated websocket connection from ${request.socket.remoteAddress ?? "unknown IP"}`);
+                    ws.close(1008, "Unauthorized");
+                    return;
                 }
-            };
-        } catch (error) {
-            logger.error("Error authenticating websocket session", error);
-            ws.close(1011, "Internal server error");
-            return;
-        }
+                if (closed) return;
+                authenticated = true;
+                for (const event of pendingMessages.splice(0)) {
+                    applySubscription(event);
+                }
+            } catch (error) {
+                logger.error("Error authenticating websocket session", error);
+                ws.close(1011, "Internal server error");
+            }
+        })();
     });
 }
 

@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 
-/** Shared content column for all settings tabs. */
+/** Shared content wrapper for all settings tabs. */
 export function SettingsPanel({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <div className={`mx-auto w-full min-w-0 max-w-3xl ${className}`}>{children}</div>;
+  return <div className={`w-full min-w-0 ${className}`}>{children}</div>;
 }
 
 /** Consistent vertical rhythm for a settings page body. */

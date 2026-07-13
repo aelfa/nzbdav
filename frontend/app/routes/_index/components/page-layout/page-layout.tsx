@@ -36,7 +36,8 @@ export function PageLayout(props: PageLayoutProps) {
                 />
             </div>
 
-            <div className="drawer min-h-0 flex-1 lg:drawer-open">
+            {/* Override daisyUI drawer-side 100dvh when sticky under the navbar. */}
+            <div className="drawer min-h-0 flex-1 overflow-hidden lg:drawer-open">
                 <input
                     id={drawerToggleId}
                     type="checkbox"
@@ -44,12 +45,12 @@ export function PageLayout(props: PageLayoutProps) {
                     checked={isHamburgerMenuOpen}
                     onChange={(event) => setIsHamburgerMenuOpen(event.target.checked)}
                 />
-                <div className="drawer-content flex min-h-0 min-w-0 flex-col overflow-hidden">
-                    <main className="yes-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto bg-base-300">
+                <div className="drawer-content flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+                    <main className="yes-scrollbar relative h-full min-h-0 min-w-0 overflow-y-auto bg-base-300">
                         {props.bodyChild}
                     </main>
                 </div>
-                <div className="drawer-side z-50">
+                <div className="drawer-side z-50 lg:!h-full lg:!max-h-full">
                     <label
                         htmlFor={drawerToggleId}
                         aria-label="Close navigation"
