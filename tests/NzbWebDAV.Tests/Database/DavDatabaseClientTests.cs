@@ -69,6 +69,14 @@ public sealed class DavDatabaseClientTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task GetFileById_NonGuidName_ReturnsNull()
+    {
+        Assert.Null(await _client.GetFileById("not-a-guid"));
+        Assert.Null(await _client.GetFileById(".."));
+        Assert.Null(await _client.GetFileById("favicon.ico"));
+    }
+
+    [Fact]
     public async Task GetItemByPathAsync_ResolvesNestedPersistedPaths()
     {
         var directory = DavItem.New(
