@@ -170,9 +170,13 @@ public class HealthCheckService : BackgroundService
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|100");
             _ = _websocketManager.SendMessage(WebsocketTopic.HealthItemProgress, $"{davItem.Id}|done");
 
-            // update the database
-            davItem.LastHealthCheck = DateTimeOffset.UtcNow;
-            davItem.NextHealthCheck = davItem.ReleaseDate + 2 * (davItem.LastHealthCheck - davItem.ReleaseDate);
+            // update the database.
+            // the next check is scheduled so the interval doubles with the item's age since release.
+            // clamp to a minimum interval: a null release-date (zero-segment item) or a future-dated
+            // article header would otherwise schedule the item in the past and hot-loop the service.
+            var utcNow = DateTimeOffset.UtcNow;
+            davItem.LastHealthCheck = utcNow;
+            davItem.NextHealthCheck = ComputeNextHealthCheck(davItem.ReleaseDate, utcNow);
             var healthyMessage = sampled.Count < totalSegments
                 ? $"File is healthy (sampled {sampled.Count}/{totalSegments} segments)."
                 : "File is healthy.";
@@ -215,6 +219,20 @@ public class HealthCheckService : BackgroundService
                 HealthCheckResult.RepairAction.ActionNeeded,
                 $"Unexpected NNTP response during health check: {e.Message}", ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    /// Schedules the next health check so the interval doubles with the item's age since release,
+    /// floored at one hour from <paramref name="utcNow"/> so null or future release dates cannot
+    /// schedule the item in the past and hot-loop the service.
+    /// </summary>
+    public static DateTimeOffset ComputeNextHealthCheck(DateTimeOffset? releaseDate, DateTimeOffset utcNow)
+    {
+        var minimumNextHealthCheck = utcNow + TimeSpan.FromHours(1);
+        var nextHealthCheck = releaseDate + 2 * (utcNow - releaseDate);
+        return nextHealthCheck == null || nextHealthCheck < minimumNextHealthCheck
+            ? minimumNextHealthCheck
+            : nextHealthCheck.Value;
     }
 
     /// <summary>
