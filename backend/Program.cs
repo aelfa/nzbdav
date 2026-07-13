@@ -163,6 +163,7 @@ class Program
                 .AddSingleton<ProviderBytesTracker>()
                 .AddHostedService<MetricsRollupService>()
                 .AddHostedService<MetricsRetentionService>()
+                .AddHostedService<SqliteMaintenanceService>()
                 .AddSingleton<LiveStatsBroadcaster>()
                 .AddHostedService(sp => sp.GetRequiredService<LiveStatsBroadcaster>())
                 .AddHostedService<HealthCheckService>()
