@@ -132,5 +132,6 @@ Before creating a PR:
 cd frontend
 npm run lint
 npm run typecheck
+npm run build
 npm test
 ```
