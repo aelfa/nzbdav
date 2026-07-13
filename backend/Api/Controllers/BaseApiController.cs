@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using NzbWebDAV.Extensions;
-using NzbWebDAV.Utils;
+using Microsoft.Extensions.DependencyInjection;
+using NzbWebDAV.Auth;
+using NzbWebDAV.Config;
 using Serilog;
 
 namespace NzbWebDAV.Api.Controllers;
@@ -19,11 +20,8 @@ public abstract class BaseApiController : ControllerBase
         {
             if (RequiresAuthentication)
             {
-                var apiKey = HttpContext.GetRequestApiKey();
-                if (apiKey == null)
-                    throw new UnauthorizedAccessException("API Key Required");
-                if (!apiKey.FixedTimeEquals(EnvironmentUtil.GetRequiredVariable("FRONTEND_BACKEND_API_KEY")))
-                    throw new UnauthorizedAccessException("API Key Incorrect");
+                var configManager = HttpContext.RequestServices.GetRequiredService<ConfigManager>();
+                ApiKeyValidator.Validate(HttpContext, configManager);
             }
 
             return await HandleRequest().ConfigureAwait(false);
