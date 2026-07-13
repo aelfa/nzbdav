@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigation } from "react-router";
 import type React from "react";
 import { useEffect, useState } from "react";
-import { LiveUsenetConnections } from "../live-usenet-connections/live-usenet-connections";
 import { LiveReads } from "../live-reads/live-reads";
 import { Icon } from "~/components/ui";
 import {
@@ -12,7 +11,6 @@ import {
 } from "~/routes/settings/settings-tabs";
 
 export type LeftNavigationProps = {
-    hasUsenetProviders?: boolean,
     isWatchdogEnabled?: boolean,
 }
 
@@ -25,7 +23,6 @@ type NavItem = {
 const SETTINGS_ITEMS = SETTINGS_TAB_GROUPS.flatMap((group) => group.items);
 
 export function LeftNavigation({
-    hasUsenetProviders,
     isWatchdogEnabled,
 }: LeftNavigationProps) {
     const location = useLocation();
@@ -100,7 +97,6 @@ export function LeftNavigation({
                 </ul>
             </nav>
             <div className="mt-auto flex flex-col gap-3">
-                <LiveUsenetConnections hasUsenetProviders={!!hasUsenetProviders} />
                 <LiveReads />
             </div>
         </div>

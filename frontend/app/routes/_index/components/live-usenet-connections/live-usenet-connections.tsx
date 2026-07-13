@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { receiveMessage } from "~/utils/websocket-util";
-import { Icon } from "~/components/ui";
 
 const usenetConnectionsTopic = {'cxs': 'state'};
 
@@ -13,7 +12,6 @@ export function LiveUsenetConnections({ hasUsenetProviders }: LiveUsenetConnecti
     const parts = (connections || "0|0|0|0|1|0").split("|");
     const [_0, _1, _2, live, max, idle] = parts.map(x => Number(x));
     const active = live - idle;
-    const activePercent = max > 0 ? 100 * (active / max) : 0;
 
     useEffect(() => {
         if (!hasUsenetProviders) {
@@ -43,33 +41,28 @@ export function LiveUsenetConnections({ hasUsenetProviders }: LiveUsenetConnecti
     }, [hasUsenetProviders]);
 
     return (
-        <section className="rounded-box border border-base-content/10 bg-base-200 p-3">
-            <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-base-content/50">
-                    <Icon name="cloud" className="!text-[16px]" />
-                    Usenet Connections
+        <div
+            className="stats hidden h-10 overflow-hidden border border-base-content/10 bg-base-200 sm:inline-grid"
+            aria-label="Usenet connections"
+        >
+            <div className="stat flex items-center gap-3 px-3 py-1">
+                <div className="stat-title text-[10px] font-semibold leading-none uppercase tracking-wide text-base-content/50">
+                    Connections
                 </div>
-                {hasUsenetProviders && (
-                    <progress
-                        className="progress progress-primary h-1.5 w-full"
-                        value={Number.isFinite(activePercent) ? activePercent : 0}
-                        max={100}
-                    />
-                )}
-                <div className="text-xs text-base-content/60">
-                    {!hasUsenetProviders && "No providers configured"}
-                    {hasUsenetProviders && connections && `${live} connected / ${max} max`}
+                <span className="h-4 w-px bg-base-content/15" aria-hidden="true" />
+                <div className="stat-value font-mono text-sm leading-tight text-base-content/80">
+                    {!hasUsenetProviders && "—"}
+                    {hasUsenetProviders && connections && `${live}/${max}`}
                     {hasUsenetProviders && !connections && (
-                        <span className="flex items-center gap-1.5">
-                            <span className="loading loading-spinner loading-xs" />
-                            Connecting
-                        </span>
+                        <span className="loading loading-spinner loading-xs" />
                     )}
                 </div>
-                {hasUsenetProviders && connections && (
-                    <div className="font-mono text-[11px] text-base-content/50">{active} active</div>
-                )}
+                <div className="stat-desc text-[10px] leading-none whitespace-nowrap text-base-content/50">
+                    {!hasUsenetProviders && "No providers"}
+                    {hasUsenetProviders && connections && `${active} active`}
+                    {hasUsenetProviders && !connections && "Connecting"}
+                </div>
             </div>
-        </section>
+        </div>
     );
 }

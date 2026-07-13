@@ -114,12 +114,12 @@ export default function App({ loaderData }: Route.ComponentProps) {
             version={version}
             updateAvailable={updateAvailable}
             isFrontendAuthDisabled={isFrontendAuthDisabled}
+            hasUsenetProviders={hasUsenetProviders}
           />
         )}
         bodyChild={showLoading ? <Loading /> : <Outlet />}
         leftNavChild={
           <LeftNavigation
-            hasUsenetProviders={hasUsenetProviders}
             isWatchdogEnabled={isWatchdogEnabled} />
         } />
     );

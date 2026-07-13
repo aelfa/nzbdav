@@ -1,12 +1,14 @@
 import { memo } from "react";
 import { Form, useNavigate } from "react-router";
 import type { RequiredTopNavProps } from "../page-layout/page-layout";
+import { LiveUsenetConnections } from "../live-usenet-connections/live-usenet-connections";
 import { Icon } from "~/components/ui";
 
 export type TopNavigationProps = RequiredTopNavProps & {
   version?: string,
   updateAvailable?: { latestVersion: string; releaseUrl: string } | null,
   isFrontendAuthDisabled?: boolean,
+  hasUsenetProviders?: boolean,
 };
 
 export const TopNavigation = memo(function TopNavigation(props: TopNavigationProps) {
@@ -16,6 +18,7 @@ export const TopNavigation = memo(function TopNavigation(props: TopNavigationPro
     version,
     updateAvailable,
     isFrontendAuthDisabled,
+    hasUsenetProviders,
   } = props;
   const navigate = useNavigate();
   const displayVersion = version || "unknown";
@@ -42,7 +45,8 @@ export const TopNavigation = memo(function TopNavigation(props: TopNavigationPro
         </button>
       </div>
 
-      <div className="navbar-end px-2 md:px-4">
+      <div className="navbar-end items-center gap-2 px-2 md:px-4">
+        <LiveUsenetConnections hasUsenetProviders={!!hasUsenetProviders} />
         <div className="dropdown dropdown-end">
           <button
             type="button"
