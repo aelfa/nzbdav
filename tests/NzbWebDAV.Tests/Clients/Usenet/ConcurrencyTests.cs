@@ -20,6 +20,64 @@ public class ConcurrencyTests
 
         breaker.RecordSuccess();
         Assert.False(breaker.IsTripped);
+        Assert.Equal(0, breaker.TrippedUntilMs);
+        Assert.Equal(TimeSpan.FromSeconds(60), breaker.CurrentCooldown);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_BurstOfFailuresProducesExactlyOneTrip()
+    {
+        var breaker = new ProviderCircuitBreaker("burst");
+
+        for (var i = 0; i < 20; i++)
+            breaker.RecordFailure();
+
+        Assert.True(breaker.IsTripped);
+        // First trip uses the initial 60s cooldown; ladder advances once for the next trip.
+        Assert.Equal(TimeSpan.FromSeconds(120), breaker.CurrentCooldown);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_FailuresWhileTrippedDoNotExtendWindow()
+    {
+        var breaker = new ProviderCircuitBreaker("latched");
+
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        Assert.True(breaker.IsTripped);
+
+        var trippedUntil = breaker.TrippedUntilMs;
+        Assert.True(trippedUntil > 0);
+
+        for (var i = 0; i < 10; i++)
+            breaker.RecordFailure();
+
+        Assert.Equal(trippedUntil, breaker.TrippedUntilMs);
+        Assert.Equal(TimeSpan.FromSeconds(120), breaker.CurrentCooldown);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_SuccessResetsCooldownLadder()
+    {
+        var breaker = new ProviderCircuitBreaker("ladder");
+
+        // Trip once so the next-trip cooldown doubles to 120s.
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        Assert.Equal(TimeSpan.FromSeconds(120), breaker.CurrentCooldown);
+
+        breaker.RecordSuccess();
+        Assert.Equal(TimeSpan.FromSeconds(60), breaker.CurrentCooldown);
+
+        // After reset, need a full threshold of fresh failures to trip again.
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        Assert.False(breaker.IsTripped);
+        breaker.RecordFailure();
+        Assert.True(breaker.IsTripped);
+        Assert.Equal(TimeSpan.FromSeconds(120), breaker.CurrentCooldown);
     }
 
     [Fact]

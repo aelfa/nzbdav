@@ -8,9 +8,10 @@ namespace NzbWebDAV.Clients.Usenet.Connections;
 /// misbehaving provider from blocking the entire download pipeline.
 /// <para>
 /// After tripping, the provider enters a cooldown period during which it is
-/// skipped. When the cooldown expires, a single probe attempt is allowed.
-/// If the probe succeeds, the breaker resets. If it fails, the cooldown
-/// doubles (up to a cap) and the breaker re-trips.
+/// skipped and additional failures are ignored (latched). When the cooldown
+/// expires, traffic flows again. If failures continue and again reach the
+/// threshold, the breaker re-trips with a doubled cooldown (up to a cap).
+/// A success fully resets the failure counter and cooldown ladder.
 /// </para>
 /// </summary>
 public class ProviderCircuitBreaker
@@ -41,6 +42,18 @@ public class ProviderCircuitBreaker
         }
     }
 
+    /// <summary>TickCount64 deadline while latched open; 0 when not tripped. For tests.</summary>
+    internal long TrippedUntilMs => Volatile.Read(ref _trippedUntilMs);
+
+    /// <summary>Cooldown that will apply on the next trip. For tests.</summary>
+    internal TimeSpan CurrentCooldown
+    {
+        get
+        {
+            lock (_lock) return _currentCooldown;
+        }
+    }
+
     public void RecordSuccess()
     {
         lock (_lock)
@@ -58,16 +71,27 @@ public class ProviderCircuitBreaker
     {
         lock (_lock)
         {
-            _consecutiveFailures++;
+            // Already latched open: ignore in-flight failures from the same burst
+            // so they cannot extend the window, double the cooldown, or spam logs.
+            if (_trippedUntilMs > 0 && Environment.TickCount64 < _trippedUntilMs)
+                return;
 
+            // Cooldown expired (or never tripped); clear a stale trip marker so
+            // success recovery logging stays accurate.
+            if (_trippedUntilMs > 0)
+                _trippedUntilMs = 0;
+
+            _consecutiveFailures++;
             if (_consecutiveFailures < FailureThreshold) return;
 
+            var failuresAtTrip = _consecutiveFailures;
             _trippedUntilMs = Environment.TickCount64 + (long)_currentCooldown.TotalMilliseconds;
             Log.Warning(
                 "Provider {Provider} tripped after {Failures} consecutive failures. " +
                 "Skipping for {Cooldown}s.",
-                _providerName, _consecutiveFailures, _currentCooldown.TotalSeconds);
+                _providerName, failuresAtTrip, _currentCooldown.TotalSeconds);
 
+            _consecutiveFailures = 0;
             _currentCooldown = TimeSpan.FromMilliseconds(
                 Math.Min(_currentCooldown.TotalMilliseconds * 2, MaxCooldown.TotalMilliseconds));
         }
