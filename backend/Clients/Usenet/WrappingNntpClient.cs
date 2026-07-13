@@ -116,17 +116,19 @@ public class WrappingNntpClient(INntpClient usenetClient) : NntpClient, INntpCon
 
     /// <summary>
     /// Test hook: swap with an explicit grace period and wait for the drain loop to finish.
+    /// Drains inline (no background loop) so exactly one consumer works the queue.
     /// </summary>
     internal Task ReplaceUnderlyingClientForTestsAsync(
         INntpClient usenetClient, TimeSpan gracePeriod, CancellationToken cancellationToken = default)
     {
         var old = _usenetClient;
         _usenetClient = usenetClient;
-        EnqueueForRetirement(old, DateTimeOffset.UtcNow + gracePeriod);
+        EnqueueForRetirement(old, DateTimeOffset.UtcNow + gracePeriod, startDrainLoop: false);
         return DrainRetiringClientsAsync(cancellationToken);
     }
 
-    private void EnqueueForRetirement(INntpClient old, DateTimeOffset? deadline = null)
+    private void EnqueueForRetirement(
+        INntpClient old, DateTimeOffset? deadline = null, bool startDrainLoop = true)
     {
         deadline ??= DateTimeOffset.UtcNow + RetirementGracePeriod;
 
@@ -140,7 +142,8 @@ public class WrappingNntpClient(INntpClient usenetClient) : NntpClient, INntpCon
 
         Interlocked.Increment(ref _retiringCount);
         _retiringClients.Enqueue((old, deadline.Value));
-        EnsureDrainLoop();
+        if (startDrainLoop)
+            EnsureDrainLoop();
     }
 
     private void EnsureDrainLoop()
