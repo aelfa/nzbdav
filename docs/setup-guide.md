@@ -12,6 +12,7 @@ An opinionated, step-by-step walkthrough for setting up NzbDav for maximum perfo
 6. [Phase 5 — Usenet streaming in Stremio (via AIOStreams)](#phase-5--usenet-streaming-in-stremio-via-aiostreams)
 7. [Phase 6 — Search profiles and adapters](#phase-6--search-profiles-and-adapters)
 8. [Phase 7 — Operations](#phase-7--operations)
+9. [Why did my files disappear?](#why-did-my-files-disappear)
 
 ## How the "infinite library" works
 
@@ -532,7 +533,7 @@ NzbDav can prune aged SAB history and health-check rows so `db.sqlite` does not 
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `DATABASE_HISTORY_RETENTION_DAYS` | `90` | Keep SAB history entries for this many days. Set to `0` to retain everything. Mounted WebDAV content is **not** deleted. |
+| `DATABASE_HISTORY_RETENTION_DAYS` | `90` | Keep SAB history entries for this many days. Set to `0` to retain everything. Pruning **unlinks** mounts from SAB history but does **not** delete WebDAV files. Remove Orphaned Files uses library symlinks/STRM links, not history, so retention alone does not make items eligible for deletion. |
 | `DATABASE_HEALTHCHECK_RETENTION_DAYS` | `30` | Keep health-check result rows for this many days. Set to `0` to retain everything. |
 | `DATABASE_MAINTENANCE_INTERVAL_HOURS` | `6` | How often the background retention sweeps run. |
 
@@ -589,3 +590,45 @@ docker compose logs --tail=200 -f nzbdav_rclone
 ```
 
 If the Rclone mount fails, first verify that `/dev/fuse` exists on the host, the sidecar has started after NzbDav became healthy, and the WebDAV username/password in `rclone.conf` match `Settings` → `WebDAV`. If Rclone specifically rejects `--allow-other`, enable `user_allow_other` in the FUSE configuration available inside the sidecar. If **Test Conn** on `Settings` → `Rclone Server` fails, confirm the sidecar has the `--rc*` flags, the host is `http://nzbdav_rclone:5572`, and the RC user/password match.
+
+---
+
+## Why did my files disappear?
+
+Mounted content under `/content` can vanish for several independent reasons. Reports of files “disappearing by themselves” usually conflate these paths:
+
+| Cause | Trigger | What happens |
+| --- | --- | --- |
+| History delete with delete-files | SAB API / UI history delete with `del_files=1` | Mounted DavItems for that history row are deleted (download dir immediately; children via background cleanup). |
+| Cascading child sweep | Any deleted directory | Children are deleted in the background (`DavCleanupService`). |
+| Health repair | `repair.enable` + missing Usenet articles | Orphaned/blocklisted items are deleted; linked items may be removed after *Arr remove-and-search. Unreachable *Arr instances defer deletion (fail safe). |
+| Remove Orphaned Files | Scheduled or manual task | Deletes Usenet files with **no library symlink/STRM** (and empty dirs). Uses library links, **not** SAB history. Aborts if fewer than 5 linked files are found or if more than 90% of deletable items look unlinked. |
+| History retention | `database.history-retention-days` > 0 | Prunes old SAB history rows with `deleteFiles: false`. Mounts stay on disk but lose their history link — they are **not** deleted by retention and are **not** made eligible for orphan removal by that unlink alone. |
+| Non-persistent `/config` | Docker volume not mounted or wiped | Fresh SQLite on restart — the entire library appears empty. |
+
+### Diagnosing with the deletion audit log
+
+Every DavItem deletion emits a structured Serilog line. Grep container logs for:
+
+```text
+dav-delete
+```
+
+Example formats:
+
+```text
+dav-delete source=history-cleanup id=... path=/content/... reason=DeleteMountedFiles=true ...
+dav-delete source=dav-cleanup count=12 parentId=... samplePaths=... reason=cascading child sweep ...
+dav-delete source=health-repair id=... path=... reason=missing articles; orphaned ...
+dav-delete source=remove-orphaned id=... path=... reason=no library symlink/strm link
+```
+
+Large history deletes with `DeleteMountedFiles=true` (more than 500 items in one cleanup row) also emit:
+
+```text
+dav-delete-bulk source=history-cleanup count=...
+```
+
+### Persist `/config`
+
+Map a durable host directory to `/config` in Docker Compose. Without that, every recreate/reboot starts with an empty database and it will look like all content disappeared.
