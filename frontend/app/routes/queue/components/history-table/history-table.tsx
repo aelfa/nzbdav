@@ -205,7 +205,7 @@ export function Actions({ slot, onRemove }: { slot: PresentationHistorySlot, onR
     return (
         <>
             {!isFolderDisabled && folderLink &&
-                <Link to={folderLink} prefetch="none">
+                <Link to={folderLink} discover="none">
                     <ActionButton type="explore" />
                 </Link>
             }
