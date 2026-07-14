@@ -153,6 +153,8 @@ public class ConfigManager
                 case ConfigKeys.UsenetArticleBufferSize:
                 case ConfigKeys.UsenetSegmentCacheMaxGb:
                 case ConfigKeys.UsenetStreamingPriority:
+                case ConfigKeys.UsenetStreamingSegmentTimeoutSeconds:
+                case ConfigKeys.UsenetStreamingSegmentRetries:
                 case ConfigKeys.WardenQuorum:
                 case ConfigKeys.WardenMaxSourceEntries:
                 case ConfigKeys.PlayTotalBudgetSeconds:
@@ -468,6 +470,19 @@ public class ConfigManager
         var stringValue = StringUtil.EmptyToNull(GetConfigValue(ConfigKeys.UsenetStreamingPriority));
         var numericalValue = int.Parse(stringValue ?? "80");
         return new SemaphorePriorityOdds() { HighPriorityOdds = numericalValue };
+    }
+
+    public TimeSpan GetStreamingSegmentTimeout()
+    {
+        var v = StringUtil.EmptyToNull(GetConfigValue(ConfigKeys.UsenetStreamingSegmentTimeoutSeconds));
+        var seconds = int.TryParse(v, out var n) ? Math.Clamp(n, 2, 40) : 8;
+        return TimeSpan.FromSeconds(seconds);
+    }
+
+    public int GetStreamingSegmentRetries()
+    {
+        var v = StringUtil.EmptyToNull(GetConfigValue(ConfigKeys.UsenetStreamingSegmentRetries));
+        return int.TryParse(v, out var n) ? Math.Clamp(n, 0, 5) : 3;
     }
 
     public bool IsEnforceReadonlyWebdavEnabled()
