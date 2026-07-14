@@ -95,6 +95,8 @@ const defaultConfig = {
     "preflight.indexer-max-wait-seconds": "5",
     "repair.enable": "false",
     "repair.healthcheck-concurrency": "50",
+    "repair.auto-remove-after-failures": "0",
+    "repair.auto-remove-unlinked-only": "true",
     "db.is-startup-vacuum-enabled": "false",
     "database.history-retention-days": "90",
     "database.healthcheck-retention-days": "30",

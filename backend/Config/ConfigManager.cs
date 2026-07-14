@@ -195,6 +195,7 @@ public class ConfigManager
                 case ConfigKeys.WatchtowerSeasonBundleFallbackRecentCount:
                 case ConfigKeys.WatchtowerSeasonBundleFallbackMaxEpisodes:
                 case ConfigKeys.RepairHealthcheckConcurrency:
+                case ConfigKeys.RepairAutoRemoveAfterFailures:
                 case ConfigKeys.DatabaseHistoryRetentionDays:
                 case ConfigKeys.DatabaseHealthcheckRetentionDays:
                 case ConfigKeys.MaintenanceRemoveOrphanedScheduleTime:
@@ -230,6 +231,7 @@ public class ConfigManager
                 case ConfigKeys.WardenHideDead:
                 case ConfigKeys.WardenBackboneScope:
                 case ConfigKeys.RepairEnable:
+                case ConfigKeys.RepairAutoRemoveUnlinkedOnly:
                 case ConfigKeys.RcloneRcEnabled:
                 case ConfigKeys.DbIsStartupVacuumEnabled:
                 case ConfigKeys.MaintenanceRemoveOrphanedScheduleEnabled:
@@ -1020,6 +1022,28 @@ public class ConfigManager
             ?? "50"
         );
         return Math.Clamp(configured, 1, Math.Max(1, poolSize));
+    }
+
+    /// <summary>
+    /// Number of streaming failures before auto-removing a broken file during urgent repair.
+    /// 0 (default) disables auto-remove and preserves today's immediate-repair behavior.
+    /// </summary>
+    public int GetAutoRemoveAfterFailures()
+    {
+        var configValue = StringUtil.EmptyToNull(GetConfigValue(ConfigKeys.RepairAutoRemoveAfterFailures));
+        if (configValue == null) return 0;
+        return int.TryParse(configValue, out var n) ? Math.Max(0, n) : 0;
+    }
+
+    /// <summary>
+    /// When true (default), auto-remove only deletes unlinked/orphaned files; library-linked
+    /// items still go through *Arr remove-and-search. When false, linked items are force-deleted
+    /// after the failure threshold as well.
+    /// </summary>
+    public bool IsAutoRemoveUnlinkedOnly()
+    {
+        var configValue = StringUtil.EmptyToNull(GetConfigValue(ConfigKeys.RepairAutoRemoveUnlinkedOnly));
+        return configValue == null || bool.Parse(configValue);
     }
 
     public ArrConfig GetArrConfig()
