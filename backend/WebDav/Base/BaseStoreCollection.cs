@@ -1,4 +1,5 @@
-﻿using NWebDav.Server;
+﻿using System.Runtime.CompilerServices;
+using NWebDav.Server;
 using NWebDav.Server.Props;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Streams;
@@ -15,7 +16,7 @@ public abstract class BaseStoreCollection : IStoreCollection
 
     protected abstract Task<StoreItemResult> CopyAsync(CopyRequest request);
     protected abstract Task<IStoreItem?> GetItemAsync(GetItemRequest request);
-    protected abstract Task<IStoreItem[]> GetAllItemsAsync(CancellationToken cancellationToken);
+    protected abstract IAsyncEnumerable<IStoreItem> GetAllItemsAsync(CancellationToken cancellationToken);
     protected abstract Task<StoreItemResult> CreateItemAsync(CreateItemRequest request);
     protected abstract Task<StoreCollectionResult> CreateCollectionAsync(CreateCollectionRequest request);
     protected abstract bool SupportsFastMove(SupportsFastMoveRequest request);
@@ -46,10 +47,10 @@ public abstract class BaseStoreCollection : IStoreCollection
         });
     }
 
-    public async IAsyncEnumerable<IStoreItem> GetItemsAsync(CancellationToken cancellationToken)
+    public async IAsyncEnumerable<IStoreItem> GetItemsAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var allItems = await GetAllItemsAsync(cancellationToken).ConfigureAwait(false);
-        foreach (var item in allItems)
+        await foreach (var item in GetAllItemsAsync(cancellationToken).ConfigureAwait(false))
         {
             yield return item;
         }
