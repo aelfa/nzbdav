@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import type { UploadingFile } from "../route";
 
@@ -21,6 +21,14 @@ export function useQueueDropzone(
     const dragDepthRef = useRef(0);
     const [isDragActive, setIsDragActive] = useState(false);
     const [rejectMessage, setRejectMessage] = useState<string | null>(null);
+
+    // iOS Safari greys out files whose extension/MIME it doesn't recognize
+    // (like .nzb) when `accept` is set. Strip the attribute after mount on
+    // iOS instead of branching during render, which would mismatch the SSR
+    // markup and trigger a hydration error.
+    useEffect(() => {
+        if (isIosUserAgent()) inputRef.current?.removeAttribute("accept");
+    }, []);
 
     const enqueueFiles = useCallback((acceptedFiles: File[]) => {
         const newFiles: UploadingFile[] = acceptedFiles.map(file => ({
@@ -94,19 +102,13 @@ export function useQueueDropzone(
             onDragLeave,
             onDrop,
         }),
-        getInputProps: () => {
-            // iOS Safari greys out unrecognized extensions in `accept`; omit it there.
-            const props: Record<string, unknown> = {
-                ref: inputRef,
-                type: "file",
-                multiple: true,
-                hidden: true,
-                onChange: onInputChange,
-            };
-            if (!isIosUserAgent()) {
-                props.accept = ".nzb,application/x-nzb";
-            }
-            return props;
-        },
+        getInputProps: () => ({
+            ref: inputRef,
+            type: "file",
+            accept: ".nzb,application/x-nzb",
+            multiple: true,
+            hidden: true,
+            onChange: onInputChange,
+        }),
     };
 }
