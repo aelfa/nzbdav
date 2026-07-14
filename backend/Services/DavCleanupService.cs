@@ -90,11 +90,6 @@ public class DavCleanupService : BackgroundService
             CreateParentIdParameters(cleanupItemId),
             cancellationToken).ConfigureAwait(false);
 
-        var parentId = Guid.TryParse(cleanupItemId, out var parsedParentId) ? parsedParentId : (Guid?)null;
-        DeletionAuditLog.RecordBatch(
-            "dav-cleanup", deletedItems,
-            "cascading child sweep after parent deletion", parentId);
-
         _ = DavDatabaseContext.RcloneVfsForget(deletedItems);
 
         // Delete by the exact text selected above. A concurrent or repeated delete
