@@ -604,6 +604,8 @@ Mounted content under `/content` can vanish for several independent reasons. Rep
 | Health repair | `repair.enable` + missing Usenet articles | Orphaned/blocklisted items are deleted; linked items may be removed after *Arr remove-and-search. Unreachable *Arr instances defer deletion (fail safe). |
 | Remove Orphaned Files | Scheduled or manual task | Deletes Usenet files with **no library symlink/STRM** (and empty dirs). Uses library links, **not** SAB history. Aborts if fewer than 5 linked files are found or if more than 90% of deletable items look unlinked. |
 | History retention | `database.history-retention-days` > 0 | Prunes old SAB history rows with `deleteFiles: false`. Mounts stay on disk but lose their history link — they are **not** deleted by retention and are **not** made eligible for orphan removal by that unlink alone. |
+| Manual delete | WebDAV client DELETE, or the admin UI/API `delete-webdav-item` action | Explicit, user-initiated deletion of the file/folder (and its children). Not a "disappearing by itself" report, but still audited. |
+| Blocklist filter | `queue.blocklisted-files` pattern match during post-processing | Newly-downloaded files matching a blocklisted filename pattern are removed before ever appearing in `/content`. |
 | Non-persistent `/config` | Docker volume not mounted or wiped | Fresh SQLite on restart — the entire library appears empty. |
 
 ### Diagnosing with the deletion audit log
@@ -621,6 +623,9 @@ dav-delete source=history-cleanup id=... path=/content/... reason=DeleteMountedF
 dav-delete source=dav-cleanup count=12 parentId=... samplePaths=... reason=cascading child sweep ...
 dav-delete source=health-repair id=... path=... reason=missing articles; orphaned ...
 dav-delete source=remove-orphaned id=... path=... reason=no library symlink/strm link
+dav-delete source=webdav-delete id=... path=... reason=client DELETE on UsenetFile
+dav-delete source=api-delete id=... path=... reason=admin delete-webdav-item
+dav-delete source=blocklist-filter id=... path=... reason=filename matches blocklist pattern ...
 ```
 
 Large history deletes with `DeleteMountedFiles=true` (more than 500 items in one cleanup row) also emit:
