@@ -46,6 +46,8 @@ public static class ConfigKeys
     public const string UsenetSegmentCacheMaxGb = "usenet.segment-cache.max-gb";
     public const string UsenetSegmentCachePath = "usenet.segment-cache.path";
     public const string UsenetStreamingPriority = "usenet.streaming-priority";
+    public const string UsenetStreamingSegmentTimeoutSeconds = "usenet.streaming-segment-timeout-seconds";
+    public const string UsenetStreamingSegmentRetries = "usenet.streaming-segment-retries";
 
     // webdav
     public const string WebdavEnforceReadonly = "webdav.enforce-readonly";

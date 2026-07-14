@@ -170,6 +170,39 @@ export function WebdavSettings({ config, setNewConfig }: SabnzbdSettingsProps) {
             </div>
             <hr />
             <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="streaming-segment-timeout-input">Streaming Segment Timeout</label>
+                <div className="flex w-full">
+                    <Input
+                        className={!isValidStreamingSegmentTimeout(config["usenet.streaming-segment-timeout-seconds"]) ? 'border-red-500 focus:border-red-500' : undefined}
+                        type="text"
+                        id="streaming-segment-timeout-input"
+                        aria-describedby="streaming-segment-timeout-help"
+                        placeholder="8"
+                        value={config["usenet.streaming-segment-timeout-seconds"]}
+                        onChange={e => setNewConfig({ ...config, "usenet.streaming-segment-timeout-seconds": e.target.value })} />
+                    <span className="flex items-center rounded-r border border-l-0 border-slate-600 bg-slate-800 px-2 text-sm text-slate-300">sec</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-base-content/45" id="streaming-segment-timeout-help">
+                    Per-segment deadline for WebDAV playback (2–40s). Stalled connections are replaced and retried before waiting for the provider&apos;s ~40s read timeout.
+                </p>
+            </div>
+            <hr />
+            <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-200" htmlFor="streaming-segment-retries-input">Streaming Segment Retries</label>
+                <Input
+                    className={!isValidStreamingSegmentRetries(config["usenet.streaming-segment-retries"]) ? 'border-red-500 focus:border-red-500' : undefined}
+                    type="text"
+                    id="streaming-segment-retries-input"
+                    aria-describedby="streaming-segment-retries-help"
+                    placeholder="3"
+                    value={config["usenet.streaming-segment-retries"]}
+                    onChange={e => setNewConfig({ ...config, "usenet.streaming-segment-retries": e.target.value })} />
+                <p className="text-[11px] leading-relaxed text-base-content/45" id="streaming-segment-retries-help">
+                    Extra attempts on a fresh connection after a streaming segment timeout (0–5). Queue and health checks are unaffected.
+                </p>
+            </div>
+            <hr />
+            <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-200" htmlFor="article-buffer-size-input">Article Buffer Size</label>
                 <Input
                     {...className(['w-full', !isValidArticleBufferSize(config["usenet.article-buffer-size"]) && 'border-red-500 focus:border-red-500'])}
@@ -287,6 +320,8 @@ export function isWebdavSettingsUpdated(config: Record<string, string>, newConfi
         || config["usenet.max-download-connections-per-stream-preset"] !== newConfig["usenet.max-download-connections-per-stream-preset"]
         || config["usenet.max-queue-connections"] !== newConfig["usenet.max-queue-connections"]
         || config["usenet.streaming-priority"] !== newConfig["usenet.streaming-priority"]
+        || config["usenet.streaming-segment-timeout-seconds"] !== newConfig["usenet.streaming-segment-timeout-seconds"]
+        || config["usenet.streaming-segment-retries"] !== newConfig["usenet.streaming-segment-retries"]
         || config["usenet.article-buffer-size"] !== newConfig["usenet.article-buffer-size"]
         || config["usenet.idle-connection-timeout-seconds"] !== newConfig["usenet.idle-connection-timeout-seconds"]
         || config["usenet.pipelined-body-requests"] !== newConfig["usenet.pipelined-body-requests"]
@@ -307,6 +342,8 @@ export function isWebdavSettingsValid(newConfig: Record<string, string>) {
         && isValidMaxDownloadConnections(newConfig["usenet.max-download-connections"])
         && isValidMaxQueueConnections(newConfig["usenet.max-queue-connections"])
         && isValidStreamingPriority(newConfig["usenet.streaming-priority"])
+        && isValidStreamingSegmentTimeout(newConfig["usenet.streaming-segment-timeout-seconds"])
+        && isValidStreamingSegmentRetries(newConfig["usenet.streaming-segment-retries"])
         && isValidArticleBufferSize(newConfig["usenet.article-buffer-size"])
         && isValidIdleConnectionTimeout(newConfig["usenet.idle-connection-timeout-seconds"])
         && segmentCacheValid;
@@ -337,6 +374,18 @@ function isValidStreamingPriority(value: string): boolean {
     if (value.trim() === "") return false;
     const num = Number(value);
     return Number.isInteger(num) && num >= 0 && num <= 100;
+}
+
+function isValidStreamingSegmentTimeout(value: string): boolean {
+    if (value.trim() === "") return false;
+    const num = Number(value);
+    return Number.isInteger(num) && num >= 2 && num <= 40;
+}
+
+function isValidStreamingSegmentRetries(value: string): boolean {
+    if (value.trim() === "") return false;
+    const num = Number(value);
+    return Number.isInteger(num) && num >= 0 && num <= 5;
 }
 
 function isValidArticleBufferSize(value: string): boolean {

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NWebDav.Server.Stores;
 using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Extensions;
@@ -27,6 +28,22 @@ public class GetWebdavItemController(
 {
     private async Task<Stream> GetWebdavItem(GetWebdavItemRequest request)
     {
+        // /view streams outside NWebDav; attach the same streaming timeout context
+        // BaseStoreStreamFile sets for WebDAV so segment fetches fail fast.
+        // BaseStoreStreamFile may overwrite this on the same token — both scopes
+        // dispose safely (second Remove is a no-op).
+        var streamingTimeoutContext = new StreamingTimeoutContext
+        {
+            PerSegmentTimeout = configManager.GetStreamingSegmentTimeout(),
+            MaxRetries = configManager.GetStreamingSegmentRetries(),
+        };
+        var scopedStreamingTimeoutContext = HttpContext.RequestAborted.SetContext(streamingTimeoutContext);
+        HttpContext.Response.OnCompleted(() =>
+        {
+            scopedStreamingTimeoutContext.Dispose();
+            return Task.CompletedTask;
+        });
+
         var item = await store.GetItemAsync(request.Item, HttpContext.RequestAborted).ConfigureAwait(false);
         if (item is null) throw new BadHttpRequestException("The file does not exist.");
         if (item is IStoreCollection) throw new BadHttpRequestException("The file does not exist.");
