@@ -56,6 +56,7 @@ public class RemoveUnlinkedFilesTaskTests
         await using var harness = await TempDb.CreateAsync();
         var ctx = harness.Context;
         await SeedRootsAsync(ctx);
+        await FillSeededEmptyDirectoriesAsync(ctx);
         var file = DavItem.New(
             Guid.NewGuid(),
             DavItem.ContentFolder,
@@ -199,6 +200,35 @@ public class RemoveUnlinkedFilesTaskTests
             ctx.Items.Add(DavItem.Root);
         if (!await ctx.Items.AnyAsync(x => x.Id == DavItem.ContentFolder.Id))
             ctx.Items.Add(DavItem.ContentFolder);
+        await ctx.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Migrations seed an empty category folder (e.g. /content/uncategorized), which the
+    /// task legitimately removes. Give each such folder a child so "no empty directories"
+    /// scenarios actually start with none.
+    /// </summary>
+    private static async Task FillSeededEmptyDirectoriesAsync(DavDatabaseContext ctx)
+    {
+        var emptyDirs = await ctx.Items
+            .Where(d => d.SubType == DavItem.ItemSubType.Directory
+                        && !ctx.Items.Any(c => c.ParentId == d.Id))
+            .ToListAsync();
+        foreach (var dir in emptyDirs)
+        {
+            ctx.Items.Add(DavItem.New(
+                Guid.NewGuid(),
+                dir,
+                "placeholder.mkv",
+                10,
+                DavItem.ItemType.UsenetFile,
+                DavItem.ItemSubType.NzbFile,
+                null,
+                null,
+                null,
+                null));
+        }
+
         await ctx.SaveChangesAsync();
     }
 
