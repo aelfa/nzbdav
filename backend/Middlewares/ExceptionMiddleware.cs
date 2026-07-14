@@ -6,12 +6,13 @@ using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Services;
 using NzbWebDAV.Utils;
 using Serilog;
 
 namespace NzbWebDAV.Middlewares;
 
-public class ExceptionMiddleware(RequestDelegate next, ConfigManager configManager)
+public class ExceptionMiddleware(RequestDelegate next, ConfigManager configManager, StreamingFailureTracker failureTracker)
 {
     private static readonly ConcurrentDictionary<string, (DateTime LastLogged, int SuppressedCount)> RecentMissingArticles = new();
     private static readonly ConcurrentDictionary<string, (DateTime LastLogged, int SuppressedCount)> RecentConnectionLimitErrors = new();
@@ -196,6 +197,8 @@ public class ExceptionMiddleware(RequestDelegate next, ConfigManager configManag
 
     private void ScheduleRepair(Guid davItemId)
     {
+        failureTracker.RecordFailure(davItemId);
+
         if (!configManager.IsRepairJobEnabled())
             return;
 

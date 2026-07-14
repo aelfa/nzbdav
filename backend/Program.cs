@@ -176,6 +176,7 @@ class Program
                 .AddSingleton<SearchExcludeSyncService>()
                 .AddHostedService(sp => sp.GetRequiredService<SearchExcludeSyncService>())
                 .AddSingleton<PlaybackFastVerifier>()
+                .AddSingleton<StreamingFailureTracker>()
                 .AddSingleton<WatchdogLog>()
                 .AddSingleton<PreflightCache>()
                 .AddSingleton<PreflightSessionRegistry>()
