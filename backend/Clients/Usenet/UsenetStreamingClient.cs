@@ -1,4 +1,5 @@
 ﻿using NzbWebDAV.Clients.Usenet.Connections;
+using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
 using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
@@ -73,6 +74,13 @@ public class UsenetStreamingClient : WrappingNntpClient
         // Always wrap with header caching so seek probes reuse immutable yEnc headers
         // even when the optional on-disk segment body cache is disabled.
         return new HeaderCachingNntpClient(inner);
+    }
+
+    public IReadOnlyList<ProviderCircuitRuntimeSnapshot> GetProviderCircuitSnapshots()
+    {
+        return WrappingNntpClient.Unwrap(InnerClient) is MultiProviderNntpClient multi
+            ? multi.GetProviderCircuitSnapshots()
+            : Array.Empty<ProviderCircuitRuntimeSnapshot>();
     }
 
     private static MultiProviderNntpClient CreateMultiProviderClient

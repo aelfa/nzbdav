@@ -81,6 +81,7 @@ public class MultiConnectionNntpClient(
     public long? ByteLimit { get; } = byteLimit;
     public long BytesUsedOffset { get; } = bytesUsedOffset;
     public bool IsTripped => circuitBreaker.IsTripped;
+    public ProviderCircuitBreakerSnapshot GetCircuitBreakerSnapshot() => circuitBreaker.GetSnapshot();
     public int LiveConnections => connectionPool.LiveConnections;
     public int IdleConnections => connectionPool.IdleConnections;
     public int ActiveConnections => connectionPool.ActiveConnections;
@@ -210,8 +211,10 @@ public class MultiConnectionNntpClient(
                     switch (result)
                     {
                         case ArticleBodyResult.Retrieved:
-                        case ArticleBodyResult.NotFound:
                             circuitBreaker.RecordSuccess();
+                            break;
+                        case ArticleBodyResult.NotFound:
+                            circuitBreaker.RecordArticleNotFound();
                             break;
                         case ArticleBodyResult.Cancelled:
                             break;
@@ -461,7 +464,7 @@ public class MultiConnectionNntpClient(
             // body and article
             else if ((result?.Success ?? false) == false)
             {
-                circuitBreaker.RecordSuccess();
+                circuitBreaker.RecordArticleNotFound();
                 deferredCallback.Discard();
                 LogException(() => connectionLock?.Dispose());
                 LogException(() => onConnectionReadyAgain?.Invoke(ArticleBodyResult.NotRetrieved));
@@ -481,6 +484,10 @@ public class MultiConnectionNntpClient(
                     else if (articleBodyResult == ArticleBodyResult.Retrieved)
                     {
                         circuitBreaker.RecordSuccess();
+                    }
+                    else if (articleBodyResult == ArticleBodyResult.NotFound)
+                    {
+                        circuitBreaker.RecordArticleNotFound();
                     }
 
                     LogException(() => connectionLock?.Dispose());

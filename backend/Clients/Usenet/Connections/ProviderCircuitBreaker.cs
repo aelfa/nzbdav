@@ -1,3 +1,4 @@
+using NzbWebDAV.Clients.Usenet.Models;
 using Serilog;
 
 namespace NzbWebDAV.Clients.Usenet.Connections;
@@ -36,6 +37,10 @@ public class ProviderCircuitBreaker
     private TimeSpan _currentCooldown = InitialCooldown;
     private int _halfOpenProbeInFlight; // 0/1
     private long _probeStartedMs;
+    private string? _lastFailureReason;
+    private long _tripCount;
+    private long _failureCount;
+    private long _articleMissCount;
 
     public ProviderCircuitBreaker(string providerName)
     {
@@ -97,8 +102,54 @@ public class ProviderCircuitBreaker
             _window.Clear();
             _trippedUntilMs = 0;
             _currentCooldown = InitialCooldown;
+            _lastFailureReason = null;
             Volatile.Write(ref _halfOpenProbeInFlight, 0);
             Volatile.Write(ref _probeStartedMs, 0);
+        }
+    }
+
+    /// <summary>
+    /// Article permanently missing from retention. Counts as a miss for diagnostics
+    /// but does not contribute to provider-failure tripping.
+    /// </summary>
+    public void RecordArticleNotFound()
+    {
+        Interlocked.Increment(ref _articleMissCount);
+        RecordSuccess();
+    }
+
+    /// <summary>Read-only snapshot for dashboards. Does not claim a half-open probe.</summary>
+    public ProviderCircuitBreakerSnapshot GetSnapshot()
+    {
+        lock (_lock)
+        {
+            var now = Environment.TickCount64;
+            var trippedUntil = _trippedUntilMs;
+            var probeInFlight = Volatile.Read(ref _halfOpenProbeInFlight) == 1;
+
+            ProviderCircuitState state;
+            int? cooldownRemainingSeconds = null;
+            if (trippedUntil > 0 && now < trippedUntil)
+            {
+                state = ProviderCircuitState.Open;
+                cooldownRemainingSeconds = Math.Max(0, (int)Math.Ceiling((trippedUntil - now) / 1000.0));
+            }
+            else if (trippedUntil > 0 || probeInFlight)
+            {
+                state = ProviderCircuitState.HalfOpen;
+            }
+            else
+            {
+                state = ProviderCircuitState.Closed;
+            }
+
+            return new ProviderCircuitBreakerSnapshot(
+                state,
+                cooldownRemainingSeconds,
+                _lastFailureReason,
+                Volatile.Read(ref _tripCount),
+                Volatile.Read(ref _failureCount),
+                Volatile.Read(ref _articleMissCount));
         }
     }
 
@@ -130,6 +181,7 @@ public class ProviderCircuitBreaker
 
             EvictOldEntries(now);
             _window.Enqueue((now, true));
+            Interlocked.Increment(ref _failureCount);
 
             var failures = 0;
             foreach (var entry in _window)
@@ -145,6 +197,8 @@ public class ProviderCircuitBreaker
 
     private void Trip(long nowMs, string reason)
     {
+        _lastFailureReason = reason;
+        Interlocked.Increment(ref _tripCount);
         _trippedUntilMs = nowMs + (long)_currentCooldown.TotalMilliseconds;
         Log.Warning(
             "Provider {Provider} tripped ({Reason}). Skipping for {Cooldown}s.",

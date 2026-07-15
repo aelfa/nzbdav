@@ -64,6 +64,12 @@ public class GetOverviewStatsResponse
         public double AvgDurationMs { get; init; }
         public double ErrorRate { get; init; }
         public List<long> Spark { get; init; } = new();
+        public string CircuitState { get; init; } = "closed";
+        public int? CooldownRemainingSeconds { get; init; }
+        public string? LastFailureReason { get; init; }
+        public long TripCount { get; init; }
+        public long FailureCount { get; init; }
+        public long ArticleMissCount { get; init; }
     }
 
     public class CatalogueBlock

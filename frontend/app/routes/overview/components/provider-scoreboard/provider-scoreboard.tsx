@@ -1,5 +1,5 @@
 import styles from "./provider-scoreboard.module.css";
-import type { OverviewWindow, ProviderRow } from "~/clients/backend-client.server";
+import type { OverviewWindow, ProviderCircuitState, ProviderRow } from "~/clients/backend-client.server";
 import { formatBytes, formatNumber, formatPercent } from "../../utils/format";
 
 export type ProviderScoreboardProps = {
@@ -18,7 +18,7 @@ export function ProviderScoreboard({ providers, window }: ProviderScoreboardProp
             </div>
 
             {providers.length === 0 ? (
-                <div className={styles.empty}>No fetches yet.</div>
+                <div className={styles.empty}>No providers configured.</div>
             ) : (
                 <div className={styles.tableWrap}>
                 <table className={styles.table}>
@@ -37,12 +37,20 @@ export function ProviderScoreboard({ providers, window }: ProviderScoreboardProp
                     <tbody>
                         {providers.map(p => {
                             const share = total > 0 ? (p.articles / total) * 100 : 0;
+                            const circuitState = p.circuitState ?? "closed";
                             return (
                                 <tr key={p.provider}>
                                     <td>
-                                        <div className={styles.providerCell} title={p.nickname?.trim() || p.provider}>
-                                            <span className={styles.dot} />
+                                        <div
+                                            className={styles.providerCell}
+                                            title={buildProviderTooltip(p, circuitState)}>
+                                            <span className={`${styles.dot} ${dotClass(circuitState)}`} />
                                             <span className={styles.providerName}>{p.nickname?.trim() || p.provider}</span>
+                                            {circuitState !== "closed" && (
+                                                <span className={`${styles.circuitBadge} ${badgeClass(circuitState)}`}>
+                                                    {circuitLabel(circuitState, p.cooldownRemainingSeconds)}
+                                                </span>
+                                            )}
                                         </div>
                                     </td>
                                     <td className={styles.sparkCol}>
@@ -71,6 +79,50 @@ export function ProviderScoreboard({ providers, window }: ProviderScoreboardProp
             )}
         </div>
     );
+}
+
+function dotClass(state: ProviderCircuitState) {
+    switch (state) {
+        case "open": return styles.dotOpen;
+        case "halfOpen": return styles.dotHalfOpen;
+        default: return styles.dotClosed;
+    }
+}
+
+function badgeClass(state: ProviderCircuitState) {
+    switch (state) {
+        case "open": return styles.badgeOpen;
+        case "halfOpen": return styles.badgeHalfOpen;
+        default: return styles.badgeClosed;
+    }
+}
+
+function circuitLabel(state: ProviderCircuitState, cooldownRemainingSeconds?: number | null) {
+    if (state === "open") {
+        return cooldownRemainingSeconds != null && cooldownRemainingSeconds > 0
+            ? `Tripped · ${cooldownRemainingSeconds}s`
+            : "Tripped";
+    }
+    if (state === "halfOpen") return "Probing";
+    return "Healthy";
+}
+
+function buildProviderTooltip(p: ProviderRow, state: ProviderCircuitState) {
+    const lines = [p.nickname?.trim() || p.provider];
+    if (state === "open") {
+        lines.push("Circuit open — provider temporarily skipped after repeated failures.");
+        if (p.cooldownRemainingSeconds != null && p.cooldownRemainingSeconds > 0)
+            lines.push(`Retry in about ${p.cooldownRemainingSeconds}s.`);
+    } else if (state === "halfOpen") {
+        lines.push("Circuit half-open — one probe request may test recovery.");
+    } else {
+        lines.push("Circuit closed — provider is healthy.");
+    }
+    if (p.lastFailureReason) lines.push(`Last trip: ${p.lastFailureReason}`);
+    if ((p.tripCount ?? 0) > 0) lines.push(`Trips (lifetime): ${p.tripCount}`);
+    if ((p.failureCount ?? 0) > 0) lines.push(`Recorded failures: ${p.failureCount}`);
+    if ((p.articleMissCount ?? 0) > 0) lines.push(`Article misses: ${p.articleMissCount}`);
+    return lines.join("\n");
 }
 
 function Sparkline({ values }: { values: number[] }) {

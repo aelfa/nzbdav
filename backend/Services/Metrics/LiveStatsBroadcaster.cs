@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using NzbWebDAV.Config;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models.Metrics;
 using NzbWebDAV.Utils;
@@ -22,7 +24,9 @@ namespace NzbWebDAV.Services.Metrics;
 /// </summary>
 public class LiveStatsBroadcaster(
     ActiveReadRegistry registry,
-    WebsocketManager websocketManager
+    WebsocketManager websocketManager,
+    UsenetStreamingClient usenetStreamingClient,
+    ConfigManager configManager
 ) : BackgroundService
 {
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(5);
@@ -80,6 +84,12 @@ public class LiveStatsBroadcaster(
         var bytesPerMinute = _byteSamples.Count > 0 ? totalBytes - _byteSamples.Peek().Total : 0;
         Interlocked.Exchange(ref _bytesServedLastMinute, bytesPerMinute);
 
+        var labelsByMetricsKey = ProviderUsageHelper.BuildLabelsByMetricsKey(
+            configManager.GetUsenetProviderConfig().Providers);
+        var providerBreakers = ProviderCircuitOverviewEnricher.ToLivePayload(
+            usenetStreamingClient.GetProviderCircuitSnapshots(),
+            labelsByMetricsKey);
+
         var snapshot = new
         {
             activeReads = registry.Count,
@@ -87,6 +97,7 @@ public class LiveStatsBroadcaster(
             errorsPerMinute = errors,
             bytesServedPerMinute = bytesPerMinute,
             ts = nowMs,
+            providerBreakers,
         };
 
         var payload = JsonSerializer.Serialize(snapshot, JsonOptions);

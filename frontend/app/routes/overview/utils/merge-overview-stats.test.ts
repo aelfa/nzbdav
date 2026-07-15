@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_OVERVIEW_STATS, mergeOverviewStats } from "./merge-overview-stats";
+import { EMPTY_OVERVIEW_STATS, mergeOverviewStats, mergeProviderCircuitBreakers } from "./merge-overview-stats";
 import type { OverviewStatsResponse } from "~/clients/backend-client.server";
 
 function partial(overrides: Partial<OverviewStatsResponse> & { includedSections: string[] }): OverviewStatsResponse {
@@ -59,5 +59,35 @@ describe("mergeOverviewStats", () => {
         expect(withDetail.throughput).toHaveLength(1);
         expect(withDetail.latency.p50Ms).toBe(12);
         expect(withDetail.errors).toEqual([{ status: "Missing", count: 3 }]);
+    });
+
+    it("merges live breaker updates without wiping historical provider columns", () => {
+        const providers = mergeProviderCircuitBreakers(
+            [{
+                provider: "11111111-1111-1111-1111-111111111111",
+                nickname: "Primary",
+                articles: 12,
+                bytesFetched: 1000,
+                errors: 1,
+                retries: 0,
+                avgDurationMs: 40,
+                errorRate: 0.08,
+                spark: [1, 2],
+            }],
+            [{
+                provider: "11111111-1111-1111-1111-111111111111",
+                nickname: "Primary",
+                circuitState: "open",
+                cooldownRemainingSeconds: 30,
+                lastFailureReason: "3 failures in 3-sample window",
+                tripCount: 1,
+                failureCount: 3,
+                articleMissCount: 0,
+            }],
+        );
+
+        expect(providers[0]?.articles).toBe(12);
+        expect(providers[0]?.circuitState).toBe("open");
+        expect(providers[0]?.cooldownRemainingSeconds).toBe(30);
     });
 });

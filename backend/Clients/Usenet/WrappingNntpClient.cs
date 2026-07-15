@@ -13,6 +13,14 @@ public class WrappingNntpClient(INntpClient usenetClient) : NntpClient, INntpCon
     private static readonly TimeSpan DrainPollInterval = TimeSpan.FromMilliseconds(250);
 
     private INntpClient _usenetClient = usenetClient;
+    protected INntpClient InnerClient => _usenetClient;
+
+    internal static INntpClient Unwrap(INntpClient client)
+    {
+        while (client is WrappingNntpClient wrap)
+            client = wrap.InnerClient;
+        return client;
+    }
     private readonly ConcurrentQueue<(INntpClient Client, DateTimeOffset Deadline)> _retiringClients = new();
     private int _retiringCount;
     private int _drainLoopRunning;

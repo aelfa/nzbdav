@@ -1,5 +1,6 @@
 using NzbWebDAV.Clients.Usenet.Concurrency;
 using NzbWebDAV.Clients.Usenet.Connections;
+using NzbWebDAV.Clients.Usenet.Models;
 using UsenetSharp.Concurrency;
 
 namespace NzbWebDAV.Tests.Clients.Usenet;
@@ -135,6 +136,56 @@ public class ConcurrencyTests
         // Further callers are fully open again (not stuck behind a half-open slot).
         Assert.False(breaker.IsTripped);
         Assert.False(breaker.IsTripped);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_GetSnapshotReportsOpenWithCountdown()
+    {
+        var breaker = new ProviderCircuitBreaker("snapshot-open");
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+
+        var snapshot = breaker.GetSnapshot();
+
+        Assert.Equal(ProviderCircuitState.Open, snapshot.State);
+        Assert.NotNull(snapshot.CooldownRemainingSeconds);
+        Assert.True(snapshot.CooldownRemainingSeconds > 0);
+        Assert.Equal(1, snapshot.TripCount);
+        Assert.Equal(3, snapshot.FailureCount);
+        Assert.NotNull(snapshot.LastFailureReason);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_GetSnapshotDoesNotClaimHalfOpenProbe()
+    {
+        var breaker = new ProviderCircuitBreaker("snapshot-half-open");
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.ExpireCooldownForTests();
+
+        var snapshot = breaker.GetSnapshot();
+        Assert.Equal(ProviderCircuitState.HalfOpen, snapshot.State);
+
+        // Snapshot reads must not consume the probe slot.
+        Assert.Equal(ProviderCircuitState.HalfOpen, breaker.GetSnapshot().State);
+        Assert.False(breaker.IsTripped);
+    }
+
+    [Fact]
+    public void ProviderCircuitBreaker_RecordArticleNotFoundCountsMissWithoutTripping()
+    {
+        var breaker = new ProviderCircuitBreaker("article-miss");
+        breaker.RecordFailure();
+        breaker.RecordFailure();
+        breaker.RecordArticleNotFound();
+        breaker.RecordArticleNotFound();
+
+        var snapshot = breaker.GetSnapshot();
+        Assert.Equal(ProviderCircuitState.Closed, snapshot.State);
+        Assert.Equal(2, snapshot.ArticleMissCount);
+        Assert.Equal(2, snapshot.FailureCount);
     }
 
     [Fact]
