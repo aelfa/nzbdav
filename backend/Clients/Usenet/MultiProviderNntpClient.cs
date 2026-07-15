@@ -23,6 +23,17 @@ public class MultiProviderNntpClient(
 ) : NntpClient, INntpConnectionStats
 {
     public int InFlightConnections => providers.Sum(p => p.InFlightConnections);
+
+    public IReadOnlyList<ProviderCircuitRuntimeSnapshot> GetProviderCircuitSnapshots()
+    {
+        return providers
+            .Select(p => new ProviderCircuitRuntimeSnapshot(
+                p.MetricsKey,
+                p.Host,
+                p.ProviderType,
+                p.GetCircuitBreakerSnapshot()))
+            .ToList();
+    }
     private readonly ProviderUsageTracker _usageTracker = usageTracker ?? new ProviderUsageTracker();
     private static readonly AsyncLocal<Guid?> ReadSessionScope = new();
     internal static Guid? CurrentReadSessionId => ReadSessionScope.Value;

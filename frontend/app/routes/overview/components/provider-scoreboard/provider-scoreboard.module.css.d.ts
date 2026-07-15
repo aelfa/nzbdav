@@ -10,6 +10,13 @@ declare const styles: {
   readonly providerCell: string;
   readonly providerName: string;
   readonly dot: string;
+  readonly dotClosed: string;
+  readonly dotOpen: string;
+  readonly dotHalfOpen: string;
+  readonly circuitBadge: string;
+  readonly badgeClosed: string;
+  readonly badgeOpen: string;
+  readonly badgeHalfOpen: string;
   readonly warn: string;
   readonly errorRate: string;
   readonly sparkCol: string;

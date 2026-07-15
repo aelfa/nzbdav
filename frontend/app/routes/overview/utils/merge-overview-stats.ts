@@ -2,6 +2,8 @@ import type {
     LiveStatsMessage,
     OverviewStatsResponse,
     OverviewWindow,
+    ProviderCircuitBreakerRow,
+    ProviderRow,
 } from "~/clients/backend-client.server";
 
 export type { LiveStatsMessage, OverviewStatsResponse, OverviewWindow };
@@ -114,4 +116,44 @@ export function mergeOverviewStats(
         ...new Set([...(prev.includedSections ?? []), ...(partial.includedSections ?? [])]),
     ];
     return next;
+}
+
+export function mergeProviderCircuitBreakers(
+    providers: ProviderRow[],
+    breakers: ProviderCircuitBreakerRow[] | undefined,
+): ProviderRow[] {
+    if (!breakers?.length) return providers;
+
+    const byKey = new Map(providers.map(p => [p.provider, { ...p }]));
+    for (const breaker of breakers) {
+        const existing = byKey.get(breaker.provider);
+        const merged: ProviderRow = {
+            ...(existing ?? {
+                provider: breaker.provider,
+                nickname: breaker.nickname,
+                articles: 0,
+                bytesFetched: 0,
+                errors: 0,
+                retries: 0,
+                avgDurationMs: 0,
+                errorRate: 0,
+                spark: [],
+            }),
+            circuitState: breaker.circuitState,
+            cooldownRemainingSeconds: breaker.cooldownRemainingSeconds,
+            lastFailureReason: breaker.lastFailureReason,
+            tripCount: breaker.tripCount,
+            failureCount: breaker.failureCount,
+            articleMissCount: breaker.articleMissCount,
+        };
+        if (!existing?.nickname && breaker.nickname) merged.nickname = breaker.nickname;
+        byKey.set(breaker.provider, merged);
+    }
+
+    return Array.from(byKey.values()).sort((a, b) => {
+        if (b.articles !== a.articles) return b.articles - a.articles;
+        const aName = (a.nickname ?? a.provider).toLowerCase();
+        const bName = (b.nickname ?? b.provider).toLowerCase();
+        return aName.localeCompare(bName);
+    });
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
@@ -17,7 +18,8 @@ public class GetOverviewStatsController(
     LiveStatsBroadcaster liveStats,
     MetricsWriter metricsWriter,
     ConfigManager configManager,
-    IndexerHitTracker hitTracker
+    IndexerHitTracker hitTracker,
+    UsenetStreamingClient usenetStreamingClient
 ) : BaseApiController
 {
     private const long OneMinute = 60_000;
@@ -324,6 +326,10 @@ public class GetOverviewStatsController(
 
         var tiles = BuildLiveTiles(liveCounts?.Articles ?? 0, liveCounts?.Errors ?? 0);
         var sessionsBlock = BuildSessionsBlock(sessionsRows.Select(s => (s.DurationMs, s.BytesServed)));
+        providers = ProviderCircuitOverviewEnricher.EnrichProviders(
+            providers,
+            usenetStreamingClient.GetProviderCircuitSnapshots(),
+            labelsByMetricsKey);
 
         return new WindowSectionResult(
             tiles, throughput, providers, sessionsBlock, heatmap, failover,

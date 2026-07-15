@@ -23,6 +23,7 @@ import { useRowOrder } from "./utils/use-row-order";
 import {
     EMPTY_OVERVIEW_STATS,
     mergeOverviewStats,
+    mergeProviderCircuitBreakers,
     type LiveStatsMessage,
     type OverviewStatsResponse,
     type OverviewWindow,
@@ -47,10 +48,10 @@ const DEFAULT_ROW_ORDER = [
     "liveTiles",
     "liveReads",
     "throughput",
+    "providers",
     "activity",
     "latency",
     "errorsSessions",
-    "providers",
     "failover",
     "indexers",
     "indexerApiUsage",
@@ -167,7 +168,8 @@ export default function Overview(_props: Route.ComponentProps) {
                     articlesPerMinute: live.articlesPerMinute,
                     errorsPerMinute: live.errorsPerMinute,
                     bytesServedPerMinute: live.bytesServedPerMinute,
-                }
+                },
+                providers: mergeProviderCircuitBreakers(s.providers, live.providerBreakers),
             }));
             setLastLiveStatsAt(Date.now());
             setTransportFailed(false);

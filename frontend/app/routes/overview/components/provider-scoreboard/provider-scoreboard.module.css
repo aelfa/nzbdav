@@ -95,8 +95,44 @@
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: var(--success);
     flex-shrink: 0;
+}
+
+.dotClosed {
+    background: var(--success);
+}
+
+.dotOpen {
+    background: var(--danger-muted);
+}
+
+.dotHalfOpen {
+    background: var(--warning);
+}
+
+.circuitBadge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 1px 6px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+
+.badgeClosed {
+    color: var(--success);
+    background: rgba(52, 211, 153, 0.12);
+}
+
+.badgeOpen {
+    color: var(--danger-muted);
+    background: rgba(248, 113, 113, 0.12);
+}
+
+.badgeHalfOpen {
+    color: var(--warning);
+    background: rgba(251, 191, 36, 0.12);
 }
 
 .warn {

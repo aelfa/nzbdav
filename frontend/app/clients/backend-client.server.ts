@@ -649,6 +649,8 @@ export type ThroughputPoint = {
     bytesServed: number,
 }
 
+export type ProviderCircuitState = "closed" | "open" | "halfOpen";
+
 export type ProviderRow = {
     provider: string,
     nickname?: string | null,
@@ -659,6 +661,24 @@ export type ProviderRow = {
     avgDurationMs: number,
     errorRate: number,
     spark: number[],
+    circuitState?: ProviderCircuitState,
+    cooldownRemainingSeconds?: number | null,
+    lastFailureReason?: string | null,
+    tripCount?: number,
+    failureCount?: number,
+    articleMissCount?: number,
+}
+
+export type ProviderCircuitBreakerRow = {
+    provider: string,
+    nickname?: string | null,
+    providerType?: string,
+    circuitState: ProviderCircuitState,
+    cooldownRemainingSeconds?: number | null,
+    lastFailureReason?: string | null,
+    tripCount?: number,
+    failureCount?: number,
+    articleMissCount?: number,
 }
 
 export type HeatmapMode = "day" | "week" | "month" | "year";
@@ -720,6 +740,7 @@ export type LiveStatsMessage = {
     errorsPerMinute: number,
     bytesServedPerMinute: number,
     ts: number,
+    providerBreakers?: ProviderCircuitBreakerRow[],
 }
 
 export type LogLevel = "Verbose" | "Debug" | "Information" | "Warning" | "Error" | "Fatal";
