@@ -158,6 +158,80 @@ public class ConcurrencyTests
     }
 
     [Fact]
+    public async Task PrioritizedSemaphore_UpdateMaxAllowed_WakesHighPriorityWaitersFirst()
+    {
+        using var semaphore = new PrioritizedSemaphore(initialAllowed: 1, maxAllowed: 1);
+        await semaphore.WaitAsync(SemaphorePriority.High);
+
+        var high1 = semaphore.WaitAsync(SemaphorePriority.High);
+        var high2 = semaphore.WaitAsync(SemaphorePriority.High);
+        var low = semaphore.WaitAsync(SemaphorePriority.Low);
+        await Task.Delay(20);
+        Assert.False(high1.IsCompleted);
+        Assert.False(high2.IsCompleted);
+        Assert.False(low.IsCompleted);
+
+        semaphore.UpdateMaxAllowed(3);
+        await high1.WaitAsync(TimeSpan.FromSeconds(1));
+        await high2.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.False(low.IsCompleted);
+
+        semaphore.Release();
+        await low.WaitAsync(TimeSpan.FromSeconds(1));
+        semaphore.Release();
+        semaphore.Release();
+        semaphore.Release();
+    }
+
+    [Fact]
+    public async Task PrioritizedSemaphore_UpdateMaxAllowed_WakesQueuedWaiterWithZeroEntered()
+    {
+        using var semaphore = new PrioritizedSemaphore(initialAllowed: 0, maxAllowed: 1);
+        var waiter = semaphore.WaitAsync(SemaphorePriority.High);
+        await Task.Delay(20);
+        Assert.False(waiter.IsCompleted);
+
+        semaphore.UpdateMaxAllowed(2);
+        await waiter.WaitAsync(TimeSpan.FromSeconds(1));
+        semaphore.Release();
+    }
+
+    [Fact]
+    public async Task PrioritizedSemaphore_UpdateMaxAllowed_SkipsCanceledWaiters()
+    {
+        using var semaphore = new PrioritizedSemaphore(initialAllowed: 0, maxAllowed: 0);
+        using var cts = new CancellationTokenSource();
+        var canceled = semaphore.WaitAsync(SemaphorePriority.High, cts.Token);
+        var live = semaphore.WaitAsync(SemaphorePriority.High);
+        cts.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => canceled);
+
+        semaphore.UpdateMaxAllowed(1);
+        await live.WaitAsync(TimeSpan.FromSeconds(1));
+        semaphore.Release();
+    }
+
+    [Fact]
+    public async Task PrioritizedSemaphore_UpdateMaxAllowed_LowerThenRaiseWakesWaiters()
+    {
+        using var semaphore = new PrioritizedSemaphore(initialAllowed: 1, maxAllowed: 1);
+        await semaphore.WaitAsync(SemaphorePriority.High);
+        var waiter = semaphore.WaitAsync(SemaphorePriority.Low);
+        await Task.Delay(20);
+
+        semaphore.UpdateMaxAllowed(0);
+        Assert.False(waiter.IsCompleted);
+
+        // Release while over-capacity is absorbed (does not wake).
+        semaphore.Release();
+        Assert.False(waiter.IsCompleted);
+
+        semaphore.UpdateMaxAllowed(2);
+        await waiter.WaitAsync(TimeSpan.FromSeconds(1));
+        semaphore.Release();
+    }
+
+    [Fact]
     public async Task PrioritizedSemaphore_BlocksUntilPermitIsReleased()
     {
         using var semaphore = new PrioritizedSemaphore(initialAllowed: 1, maxAllowed: 1);
