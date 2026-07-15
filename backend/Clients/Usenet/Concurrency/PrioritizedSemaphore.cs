@@ -161,10 +161,25 @@ public class PrioritizedSemaphore : IDisposable
 
     public void UpdateMaxAllowed(int newMaxAllowed)
     {
+        List<TaskCompletionSource<bool>>? toRelease = null;
         lock (_lock)
         {
             _maxAllowed = newMaxAllowed;
+            // Config-change path: drain high-priority waiters first (no dice roll).
+            // These waiters enter on brand-new capacity, so increment _enteredCount
+            // (unlike Release() handoff, which keeps it flat).
+            while (_enteredCount < _maxAllowed)
+            {
+                var waiter = Release(_highPriorityWaiters) ?? Release(_lowPriorityWaiters);
+                if (waiter is null) break;
+                _enteredCount++;
+                (toRelease ??= []).Add(waiter);
+            }
         }
+
+        if (toRelease != null)
+            foreach (var tcs in toRelease)
+                tcs.TrySetResult(true);
     }
 
     public void UpdatePriorityOdds(SemaphorePriorityOdds newPriorityOdds)
