@@ -20,7 +20,9 @@ public partial class DavNzbFile
     /// <summary>
     /// Per-segment alternate MessageIds aligned with <see cref="SegmentIds"/>.
     /// Null on blobs written before this field existed.
+    /// Blob/MemoryPack only — not an EF column (nested string[][] is unsupported).
     /// </summary>
+    [NotMapped]
     [MemoryPackOrder(3)]
     public string[][]? SegmentFallbackIds { get; set; }
 
