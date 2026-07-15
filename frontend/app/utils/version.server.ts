@@ -7,7 +7,13 @@ const gitDirPath = resolve(process.cwd(), "..", ".git");
 export type BuildCommit = {
   sha: string;
   branch: string;
-  source: "env" | "git";
+  source: "env" | "git" | "version";
+};
+
+type BuildCommitOptions = {
+  gitDir?: string;
+  /** Version label that may embed a commit SHA (e.g. `main-e0eef520`). */
+  version?: string | null;
 };
 
 export async function getAppVersion(): Promise<string | undefined> {
@@ -28,19 +34,35 @@ export async function getAppVersion(): Promise<string | undefined> {
  * Preference order:
  * 1. `NZBDAV_COMMIT_SHA` env (baked into Docker images)
  * 2. Local `.git` checkout when HEAD is on `main`
+ * 3. Commit SHA embedded in the version label (`main-<sha>` builds)
  *
  * Non-main branches and detached HEAD return undefined so feature-branch /
  * fork checkouts do not produce false update notifications.
  */
 export async function getBuildCommit(
-  gitDir: string = gitDirPath,
+  options: BuildCommitOptions = {},
 ): Promise<BuildCommit | undefined> {
+  const { gitDir = gitDirPath, version } = options;
+
   const envSha = process.env.NZBDAV_COMMIT_SHA?.trim();
   if (envSha && isValidSha(envSha)) {
     return { sha: envSha.toLowerCase(), branch: "main", source: "env" };
   }
 
-  return readLocalMainCommit(gitDir);
+  const local = await readLocalMainCommit(gitDir);
+  if (local) return local;
+
+  return parseBuildCommitFromVersion(version);
+}
+
+/** Parse a commit SHA embedded in a `main-<sha>` version label. */
+export function parseBuildCommitFromVersion(
+  version: string | undefined | null,
+): BuildCommit | undefined {
+  if (!version) return undefined;
+  const match = /^main-([0-9a-f]{7,40})$/i.exec(version.trim());
+  if (!match) return undefined;
+  return { sha: match[1].toLowerCase(), branch: "main", source: "version" };
 }
 
 async function readLocalMainCommit(gitDir: string): Promise<BuildCommit | undefined> {
