@@ -247,6 +247,47 @@ describe("checkForUpdate", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/releases/latest");
   });
+
+  it("does not compare release builds using version-embedded SHAs", async () => {
+    getBuildCommitMock.mockResolvedValue({
+      sha: "e0eef520",
+      branch: "main",
+      source: "version",
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        tag_name: "v0.7.5",
+        html_url: "https://github.com/nzbdav/nzbdav/releases/tag/v0.7.5",
+      }),
+    );
+
+    await expect(checkForUpdate("0.7.5")).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/releases/latest");
+  });
+
+  it("notifies main-<sha> builds when main is ahead", async () => {
+    getBuildCommitMock.mockResolvedValue({
+      sha: "e0eef520",
+      branch: "main",
+      source: "version",
+    });
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        status: "ahead",
+        ahead_by: 2,
+        html_url: "https://github.com/nzbdav/nzbdav/compare/e0eef520...main",
+      }),
+    );
+
+    await expect(checkForUpdate("main-e0eef520")).resolves.toEqual({
+      kind: "dev",
+      commitsBehind: 2,
+      compareUrl: "https://github.com/nzbdav/nzbdav/compare/e0eef520...main",
+    });
+    expect(getBuildCommitMock).toHaveBeenCalledWith({ version: "main-e0eef520" });
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/compare/e0eef520...main");
+  });
 });
 
 describe("checkForUpdate (dev builds)", () => {

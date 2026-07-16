@@ -217,8 +217,11 @@ async function checkForReleaseUpdate(
   };
 }
 
-async function checkForDevUpdate(localGitOnly = false): Promise<DevUpdateAvailable | null> {
-  const build = await getBuildCommit();
+async function checkForDevUpdate(
+  localGitOnly = false,
+  currentVersion?: string | null,
+): Promise<DevUpdateAvailable | null> {
+  const build = await getBuildCommit({ version: currentVersion });
   if (!build) return null;
   if (localGitOnly && build.source !== "git") return null;
 
@@ -251,5 +254,7 @@ export async function checkForUpdate(
     return checkForDevUpdate(true);
   }
 
-  return checkForDevUpdate();
+  // Non-comparable versions (e.g. `main-<sha>`) may embed the build commit in
+  // the version label itself, so pass it along as a fallback SHA source.
+  return checkForDevUpdate(false, currentVersion);
 }
