@@ -263,8 +263,8 @@ Skip this handoff if there are no local changes and nothing to push or PR. Do no
 | `docs.yml` | PRs and pushes to `main` | Zensical docs build (`zensical build --clean --strict`); deploys to GitHub Pages on `main` |
 | `codeql.yml` | PRs, pushes to `main`, and weekly schedule | CodeQL security analysis for C#, TypeScript, and GitHub Actions |
 | `pre-release.yml` | Manual `workflow_dispatch` | Publishes `ghcr.io/.../nzbdav:dev` |
-| `release.yml` | Push to `main` | release-please versioning; publishes Docker images when a release is created |
-| `release.yml` | Manual `workflow_dispatch` | Republishes semver Docker tags to GHCR for an existing version |
+| `release.yml` | Push to `main` | release-please versioning; publishes release and `dev` Docker tags when a release is created |
+| `release.yml` | Manual `workflow_dispatch` | Republishes release and `dev` Docker tags to GHCR for an existing version |
 | `dependency-submission.yml` | GitHub Release `published` (plus manual `workflow_dispatch`) | Dependency graph submission (NuGet + npm) |
 | `docker-build-push.yml` | Reusable (called by pre-release/release) | Multi-arch Docker build with GHA cache |
 
@@ -274,9 +274,9 @@ Docker image builds are shared via the reusable workflow. Branch and dependabot 
 
 - Merging to `main` triggers **release-please** (`.github/workflows/release.yml`) which maintains `CHANGELOG.md` + `version.txt` and creates GitHub releases.
 - `feat` → minor bump; `fix` → patch bump (pre-1.0 rules in `.release-please-config.json`).
-- When release-please creates a release on merge to `main`, the same workflow run builds and pushes Docker images to `ghcr.io` (`latest`, exact `vMAJOR.MINOR.PATCH`, and rolling `vMAJOR` / `vMAJOR.MINOR` tags).
+- When release-please creates a release on merge to `main`, the same workflow run builds and pushes Docker images to `ghcr.io` (`latest`, `dev`, exact `vMAJOR.MINOR.PATCH`, and rolling `vMAJOR` / `vMAJOR.MINOR` tags).
 - To republish images for an existing release (e.g. after fixing CI), run **Release** workflow manually with the `version` input (e.g. `0.6.5`).
-- Pre-release Docker images (`:dev`) are published on demand via **Actions → Pre-release → Run workflow**.
+- Between releases, update the pre-release Docker image (`:dev`) on demand via **Actions → Pre-release → Run workflow**; the next release moves `:dev` to that release.
 - Dependency graph submission runs when a GitHub Release is published (and can be re-run manually via `workflow_dispatch`). Keep GitHub **Automatic dependency submission** disabled to avoid duplicates.
 
 ## Coding guidelines

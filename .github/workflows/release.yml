@@ -75,6 +75,7 @@ jobs:
     with:
       tags: |
         ghcr.io/${{ github.repository }}:latest
+        ghcr.io/${{ github.repository }}:dev
         ghcr.io/${{ github.repository }}:v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}.${{ needs.release-please.outputs.patch }}
         ghcr.io/${{ github.repository }}:v${{ needs.release-please.outputs.major }}
         ghcr.io/${{ github.repository }}:v${{ needs.release-please.outputs.major }}.${{ needs.release-please.outputs.minor }}
@@ -93,6 +94,7 @@ jobs:
     with:
       tags: |
         ghcr.io/${{ github.repository }}:latest
+        ghcr.io/${{ github.repository }}:dev
         ghcr.io/${{ github.repository }}:${{ needs.resolve-version.outputs.ref }}
         ghcr.io/${{ github.repository }}:v${{ needs.resolve-version.outputs.major }}
         ghcr.io/${{ github.repository }}:v${{ needs.resolve-version.outputs.major }}.${{ needs.resolve-version.outputs.minor }}
