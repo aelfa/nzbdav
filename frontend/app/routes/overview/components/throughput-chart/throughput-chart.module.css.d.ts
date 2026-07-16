@@ -1,8 +1,5 @@
 declare const styles: {
-  readonly container: string;
   readonly header: string;
-  readonly title: string;
-  readonly sub: string;
   readonly totals: string;
   readonly total: string;
   readonly totalDanger: string;

@@ -1,8 +1,5 @@
 declare const styles: {
-  readonly container: string;
   readonly header: string;
-  readonly title: string;
-  readonly sub: string;
   readonly peak: string;
   readonly peakLabel: string;
   readonly peakValue: string;
@@ -15,7 +12,6 @@ declare const styles: {
   readonly cell: string;
   readonly cellEmpty: string;
   readonly mode_day: string;
-  readonly mode_week: string;
   readonly mode_month: string;
   readonly mode_year: string;
   readonly axisRow: string;

@@ -83,11 +83,12 @@ export function ThroughputChart({ points, totalArticles, totalMisses, totalError
     const hover = hoverIdx !== null ? points[hoverIdx] : null;
 
     return (
-        <div className={styles.container}>
+        <section className="card w-full min-w-0 overflow-hidden border border-base-content/10 bg-base-100 shadow-sm">
+            <div className="card-body gap-3 p-4">
             <div className={styles.header}>
                 <div>
-                    <h3 className={styles.title}>Activity</h3>
-                    <div className={styles.sub}>Articles fetched per {bucketLabel}, last {window}</div>
+                    <h3 className="card-title text-base">Activity</h3>
+                    <p className="text-xs text-base-content/50">Articles fetched per {bucketLabel}, last {window}</p>
                 </div>
                 <div className={styles.totals}>
                     <Total label="Articles" value={formatNumber(totalArticles)} />
@@ -181,7 +182,8 @@ export function ThroughputChart({ points, totalArticles, totalMisses, totalError
                     <div className={styles.emptySub}>Articles you fetch will appear here.</div>
                 </div>
             )}
-        </div>
+            </div>
+        </section>
     );
 }
 
