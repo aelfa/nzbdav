@@ -3,6 +3,7 @@ using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
+using NzbWebDAV.Services.StreamTrace;
 using NzbWebDAV.Utils;
 using Serilog;
 using UsenetSharp.Models;
@@ -109,6 +110,8 @@ public class NzbFileStream(
         {
             _pendingForwardDrain += absoluteOffset - _position;
             _position = absoluteOffset;
+            if (MultiProviderNntpClient.CurrentReadSessionId is { } drainSession)
+                StreamTrace.TrySeek(drainSession, _position);
             return _position;
         }
 
@@ -116,6 +119,8 @@ public class NzbFileStream(
         _innerStream?.Dispose();
         _innerStream = null;
         _pendingForwardDrain = 0;
+        if (MultiProviderNntpClient.CurrentReadSessionId is { } seekSession)
+            StreamTrace.TrySeek(seekSession, _position);
         return _position;
     }
 

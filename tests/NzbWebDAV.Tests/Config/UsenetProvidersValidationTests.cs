@@ -5,6 +5,7 @@ using NzbWebDAV.Database.Models;
 using NzbWebDAV.Models;
 using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
+using NzbWebDAV.Services.StreamTrace;
 using NzbWebDAV.Websocket;
 
 namespace NzbWebDAV.Tests.Config;
@@ -86,7 +87,9 @@ public class UsenetProvidersValidationTests
             new WebsocketManager(),
             new ProviderUsageTracker(),
             new MetricsWriter(),
-            new ProviderBytesTracker());
+            new ProviderBytesTracker(),
+            new StreamTraceBuffer(100),
+            new ActiveReadRegistry());
 
         Assert.NotNull(client);
         client.Dispose();

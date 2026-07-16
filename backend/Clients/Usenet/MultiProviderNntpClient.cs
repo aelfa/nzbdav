@@ -8,8 +8,10 @@ using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
+using NzbWebDAV.Services.StreamTrace;
 using NzbWebDAV.Streams;
 using Serilog;
+using Serilog.Context;
 using UsenetSharp.Models;
 
 namespace NzbWebDAV.Clients.Usenet;
@@ -19,7 +21,9 @@ public class MultiProviderNntpClient(
     ProviderUsageTracker? usageTracker = null,
     MetricsWriter? metricsWriter = null,
     ProviderBytesTracker? bytesTracker = null,
-    Func<bool>? cascadeEnabled = null
+    Func<bool>? cascadeEnabled = null,
+    StreamTraceBuffer? streamTrace = null,
+    ActiveReadRegistry? activeReadRegistry = null
 ) : NntpClient, INntpConnectionStats
 {
     public int InFlightConnections => providers.Sum(p => p.InFlightConnections);
@@ -41,13 +45,19 @@ public class MultiProviderNntpClient(
     /// <summary>
     /// Tag the current async flow with a read-session id so SegmentFetch rows
     /// emitted while fulfilling this read can be correlated back to the session.
-    /// Disposing the returned scope restores the previous value.
+    /// Also pushes ReadSessionId into the Serilog LogContext for Debug logs.
+    /// Disposing the returned scope restores the previous values.
     /// </summary>
     public static IDisposable BeginReadSessionScope(Guid readSessionId)
     {
         var previous = ReadSessionScope.Value;
         ReadSessionScope.Value = readSessionId;
-        return new ScopeReleaser(() => ReadSessionScope.Value = previous);
+        var logProp = LogContext.PushProperty("ReadSessionId", readSessionId);
+        return new ScopeReleaser(() =>
+        {
+            logProp.Dispose();
+            ReadSessionScope.Value = previous;
+        });
     }
 
     private sealed class ScopeReleaser(Action onDispose) : IDisposable
@@ -661,6 +671,11 @@ public class MultiProviderNntpClient(
 
     private void RecordFetch(string metricsKey, SegmentFetch.FetchStatus status, long durationMs, int retries)
     {
+        if (ReadSessionScope.Value is { } sessionId)
+        {
+            streamTrace?.Segment(sessionId, metricsKey, status, (int)Math.Min(int.MaxValue, durationMs), retries);
+        }
+
         if (metricsWriter == null) return;
         metricsWriter.RecordFetch(new SegmentFetch
         {
@@ -678,6 +693,12 @@ public class MultiProviderNntpClient(
         List<(string Host, SegmentFetch.FetchStatus Reason)>? priorMisses,
         string rescuer)
     {
+        if (priorMisses != null && ReadSessionScope.Value is { } sessionId)
+        {
+            foreach (var (from, reason) in priorMisses)
+                streamTrace?.Failover(sessionId, from, rescuer, reason.ToString());
+        }
+
         if (metricsWriter == null || priorMisses == null) return;
         var at = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         foreach (var (from, reason) in priorMisses)
@@ -698,9 +719,9 @@ public class MultiProviderNntpClient(
         return result switch
         {
             UsenetDecodedBodyResponse b
-                => (T)(object)(b with { Stream = new CountingYencStream(b.Stream!, bytesTracker, metricsKey) }),
+                => (T)(object)(b with { Stream = new CountingYencStream(b.Stream!, bytesTracker, metricsKey, activeReadRegistry) }),
             UsenetDecodedArticleResponse a
-                => (T)(object)(a with { Stream = new CountingYencStream(a.Stream!, bytesTracker, metricsKey) }),
+                => (T)(object)(a with { Stream = new CountingYencStream(a.Stream!, bytesTracker, metricsKey, activeReadRegistry) }),
             _ => result,
         };
     }
