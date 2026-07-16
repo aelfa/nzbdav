@@ -4,6 +4,7 @@ using NzbWebDAV.Clients.Usenet.Contexts;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
+using NzbWebDAV.Services.StreamTrace;
 using Serilog;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
@@ -273,6 +274,8 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
                 {
                     Log.Debug(e, "Transient failure fetching segment {SegmentId} (attempt {Attempt}). Retrying.",
                         segmentId, attempt + 1);
+                    if (MultiProviderNntpClient.CurrentReadSessionId is { } retrySession)
+                        StreamTrace.TryRetry(retrySession, segmentId, attempt + 1, e.Message);
                     await Task.Delay(TimeSpan.FromMilliseconds(250 * (attempt + 1)), cancellationToken)
                         .ConfigureAwait(false);
                     continue;
@@ -389,6 +392,8 @@ public class MultiSegmentStream : FastReadOnlyNonSeekableStream
             Log.Warning(messageTemplate, segmentId, _fileName, fill);
         else
             exception.LogWarningKnownOrStack(messageTemplate, segmentId, _fileName, fill);
+        if (MultiProviderNntpClient.CurrentReadSessionId is { } sessionId)
+            StreamTrace.TryZeroFill(sessionId, segmentId, fill);
         return new MemoryStream(new byte[fill], writable: false);
     }
 

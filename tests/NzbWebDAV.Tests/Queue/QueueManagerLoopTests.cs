@@ -5,6 +5,7 @@ using NzbWebDAV.Database.Models;
 using NzbWebDAV.Queue;
 using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
+using NzbWebDAV.Services.StreamTrace;
 using NzbWebDAV.Websocket;
 
 namespace NzbWebDAV.Tests.Queue;
@@ -65,7 +66,9 @@ public class QueueManagerLoopTests
             new WebsocketManager(),
             new ProviderUsageTracker(),
             new MetricsWriter(),
-            new ProviderBytesTracker());
+            new ProviderBytesTracker(),
+            new StreamTraceBuffer(100),
+            new ActiveReadRegistry());
 
         return new QueueManager(
             usenet,

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using NzbWebDAV.Clients.Usenet;
+using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
 using UsenetSharp.Models;
 using UsenetSharp.Streams;
@@ -16,14 +18,20 @@ public sealed class CountingYencStream : YencStream
     private readonly YencStream _inner;
     private readonly ProviderBytesTracker _tracker;
     private readonly string _providerKey;
+    private readonly ActiveReadRegistry? _activeReadRegistry;
     private long _bytes;
     private long _activeReadTicks;
 
-    public CountingYencStream(YencStream inner, ProviderBytesTracker tracker, string providerKey) : base(Null)
+    public CountingYencStream(
+        YencStream inner,
+        ProviderBytesTracker tracker,
+        string providerKey,
+        ActiveReadRegistry? activeReadRegistry = null) : base(Null)
     {
         _inner = inner;
         _tracker = tracker;
         _providerKey = providerKey;
+        _activeReadRegistry = activeReadRegistry;
     }
 
     public override ValueTask<UsenetYencHeader?> GetYencHeadersAsync(CancellationToken cancellationToken = default)
@@ -38,6 +46,8 @@ public sealed class CountingYencStream : YencStream
         {
             _tracker.Add(_providerKey, n);
             _bytes += n;
+            if (MultiProviderNntpClient.CurrentReadSessionId is { } sessionId)
+                _activeReadRegistry?.AddBytesFetched(sessionId, n);
         }
         return n;
     }

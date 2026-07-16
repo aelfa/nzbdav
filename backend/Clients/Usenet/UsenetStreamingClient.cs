@@ -3,6 +3,7 @@ using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
 using NzbWebDAV.Services;
 using NzbWebDAV.Services.Metrics;
+using NzbWebDAV.Services.StreamTrace;
 using NzbWebDAV.Websocket;
 using Serilog;
 
@@ -15,8 +16,12 @@ public class UsenetStreamingClient : WrappingNntpClient
         WebsocketManager websocketManager,
         ProviderUsageTracker usageTracker,
         MetricsWriter metricsWriter,
-        ProviderBytesTracker bytesTracker)
-        : base(CreateDownloadingNntpClient(configManager, websocketManager, usageTracker, metricsWriter, bytesTracker))
+        ProviderBytesTracker bytesTracker,
+        StreamTraceBuffer streamTrace,
+        ActiveReadRegistry activeReadRegistry)
+        : base(CreateDownloadingNntpClient(
+            configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
+            streamTrace, activeReadRegistry))
     {
         // when config changes, create a new MultiProviderClient to use instead.
         configManager.OnConfigChanged += (_, configEventArgs) =>
@@ -28,7 +33,8 @@ public class UsenetStreamingClient : WrappingNntpClient
             {
                 // update the connection-pool according to the new config
                 var newUsenetClient = CreateDownloadingNntpClient(
-                    configManager, websocketManager, usageTracker, metricsWriter, bytesTracker);
+                    configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
+                    streamTrace, activeReadRegistry);
                 ReplaceUnderlyingClient(newUsenetClient);
             }
             catch (Exception e)
@@ -46,10 +52,14 @@ public class UsenetStreamingClient : WrappingNntpClient
         WebsocketManager websocketManager,
         ProviderUsageTracker usageTracker,
         MetricsWriter metricsWriter,
-        ProviderBytesTracker bytesTracker
+        ProviderBytesTracker bytesTracker,
+        StreamTraceBuffer streamTrace,
+        ActiveReadRegistry activeReadRegistry
     )
     {
-        var multiProviderClient = CreateMultiProviderClient(configManager, websocketManager, usageTracker, metricsWriter, bytesTracker);
+        var multiProviderClient = CreateMultiProviderClient(
+            configManager, websocketManager, usageTracker, metricsWriter, bytesTracker,
+            streamTrace, activeReadRegistry);
         var downloadingClient = new DownloadingNntpClient(multiProviderClient, configManager);
         INntpClient inner = downloadingClient;
         if (configManager.IsSegmentCacheEnabled())
@@ -89,7 +99,9 @@ public class UsenetStreamingClient : WrappingNntpClient
         WebsocketManager websocketManager,
         ProviderUsageTracker usageTracker,
         MetricsWriter metricsWriter,
-        ProviderBytesTracker bytesTracker
+        ProviderBytesTracker bytesTracker,
+        StreamTraceBuffer streamTrace,
+        ActiveReadRegistry activeReadRegistry
     )
     {
         var providerConfig = configManager.GetUsenetProviderConfig();
@@ -109,8 +121,11 @@ public class UsenetStreamingClient : WrappingNntpClient
                 idleTimeoutSeconds
             ))
             .ToList();
-        return new MultiProviderNntpClient(providerClients, usageTracker, metricsWriter, bytesTracker,
-            cascadeEnabled: configManager.IsCascadeEnabled);
+        return new MultiProviderNntpClient(
+            providerClients, usageTracker, metricsWriter, bytesTracker,
+            cascadeEnabled: configManager.IsCascadeEnabled,
+            streamTrace: streamTrace,
+            activeReadRegistry: activeReadRegistry);
     }
 
     private static MultiConnectionNntpClient CreateProviderClient
