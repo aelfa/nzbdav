@@ -66,6 +66,17 @@ public class DetectKneeTests
     }
 
     [Fact]
+    public void DetectKnee_LoneSpikeAboveTinySecondBestReturnsNull()
+    {
+        // Matches the laptop failure mode: zeros, a blip at 40, then a ceiling spike.
+        var sweep = Sweep(
+            (1, 0), (8, 0), (16, 0), (32, 0), (40, 3.5), (50, 105));
+        var warnings = new List<string>();
+
+        Assert.Null(UsenetBenchmarkService.DetectKnee(sweep, null, warnings));
+    }
+
+    [Fact]
     public void DetectKnee_AddsWarningForNoisyMeasurement()
     {
         var sweep = Sweep((1, 10), (2, 20), (4, 21));

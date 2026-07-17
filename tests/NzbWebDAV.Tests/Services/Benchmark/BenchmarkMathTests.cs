@@ -97,13 +97,16 @@ public class BenchmarkMathTests
     }
 
     [Fact]
-    public void AdaptiveTargetBytes_UsesProfileFloorWithoutEstimate()
+    public void AdaptiveTargetBytes_UsesConnectionScaledBootstrapWithoutEstimate()
     {
         var profile = BenchmarkProfile.For(BenchmarkIntensity.Quick);
 
-        var bytes = UsenetBenchmarkService.AdaptiveTargetBytes(0, profile, 500_000_000);
+        var one = UsenetBenchmarkService.AdaptiveTargetBytes(0, profile, 500_000_000, connections: 1);
+        var eight = UsenetBenchmarkService.AdaptiveTargetBytes(0, profile, 500_000_000, connections: 8);
 
-        Assert.Equal(profile.PerLevelBytes, bytes);
+        Assert.True(one >= profile.PerLevelBytes);
+        Assert.True(eight > one);
+        Assert.Equal(128_000_000, eight); // 8 conn × 2 MB/s × 2 × 4s
     }
 
     [Fact]
