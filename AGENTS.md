@@ -179,9 +179,9 @@ Prefer the most specific type so release-please places the entry in the right ch
 | `feat` | Features | New user-visible behavior |
 | `fix` | Bug Fixes | Bug fixes, regressions, compatibility fixes |
 | `perf` | Performance Improvements | Performance-only improvements |
-| `chore` | Other Changes | Tooling, release automation, non-user-facing maintenance |
+| `chore` | *(omitted from release notes)* | Tooling, release automation, non-user-facing maintenance |
 | `docs` | Documentation | README, docs/, AGENTS.md |
-| `ci` | CI/CD Pipeline | GitHub Actions / CI only |
+| `ci` | *(omitted from release notes)* | GitHub Actions / CI only |
 | `test` / `tests` | Testing | Tests only (no product behavior change) |
 | `refactor` | Refactors | Internal restructuring without behavior change |
 | `ux` | UX | Formatting / UI chrome with no behavior change (prefer `feat(ui)` / `fix(ui)` when behavior changes) |
@@ -289,7 +289,7 @@ Docker image builds are shared via the reusable workflow. Branch and dependabot 
 ## Releases
 
 - Merging to `main` triggers **release-please** (`.github/workflows/release.yml`) which maintains `CHANGELOG.md` + `version.txt` and creates GitHub releases.
-- `feat` → minor bump; `fix` → patch bump (pre-1.0 rules in `.release-please-config.json`). Other conventional types (`perf`, `chore`, `docs`, `ci`, `test`, `refactor`, `style`, `revert`, `build`) appear in changelog sections but do not bump the version by themselves.
+- `feat` → minor bump; `fix` → patch bump (pre-1.0 rules in `.release-please-config.json`). Other conventional types (`perf`, `docs`, `test`, `refactor`, `style`, `revert`, `build`) appear in changelog sections but do not bump the version by themselves. `chore` and `ci` commits are omitted from release notes.
 - When release-please creates a release on merge to `main`, the same workflow run builds and pushes Docker images to `ghcr.io` (`latest`, `dev`, exact `vMAJOR.MINOR.PATCH`, and rolling `vMAJOR` / `vMAJOR.MINOR` tags) and moves the git `dev` tag to that release commit.
 - To republish images for an existing release (e.g. after fixing CI), run **Release** workflow manually with the `version` input (e.g. `0.6.5`); this also moves the git `dev` tag to that version.
 - Between releases, update the pre-release Docker image (`:dev`) and git `dev` tag on demand via **Actions → Pre-release → Run workflow**.
