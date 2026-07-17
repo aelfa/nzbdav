@@ -111,10 +111,10 @@ public class DetectKneeTests
         Assert.False(stillClimbing);
     }
 
-    private static List<BenchmarkSweepPoint> Sweep(params (int Connections, double MbPerSec)[] points) =>
+    private static List<BenchmarkSweepPoint> Sweep(params (int Connections, double MegaBytesPerSec)[] points) =>
         points.Select(point => new BenchmarkSweepPoint
         {
             Connections = point.Connections,
-            MbPerSec = point.MbPerSec,
+            MegaBytesPerSec = point.MegaBytesPerSec,
         }).ToList();
 }

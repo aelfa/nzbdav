@@ -35,6 +35,25 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    /// <summary>
+    /// Publishes a terminal websocket frame when the run fails before a
+    /// <see cref="BenchmarkResult"/> exists (connect/login errors, cancel, etc.).
+    /// </summary>
+    public void ReportFailure(string error)
+    {
+        var update = new BenchmarkProgressUpdate
+        {
+            Phase = "done",
+            Status = error,
+            Percent = 100,
+            DataUsedBytes = 0,
+            DataBudgetBytes = 0,
+            Sweep = [],
+            Error = error,
+        };
+        _ = websocketManager.SendMessage(WebsocketTopic.BenchmarkProgress, JsonSerializer.Serialize(update, JsonOptions));
+    }
+
     public async Task<BenchmarkResult> RunAsync(
         UsenetProviderConfig.ConnectionDetails provider,
         int configuredMaxConnections,
@@ -51,8 +70,8 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         // Hold back enough for baseline + each pipelining depth so a full auto-tune
         // still produces a depth recommendation instead of burning the whole budget
         // on the connection sweep.
-        long SweepRemaining(double mbPerSec) =>
-            Math.Max(0, Remaining() - PipeliningReserveBytes(profile, mbPerSec, budget));
+        long SweepRemaining(double megaBytesPerSec) =>
+            Math.Max(0, Remaining() - PipeliningReserveBytes(profile, megaBytesPerSec, budget));
 
         using var ladder = new BenchmarkConnectionLadder(provider);
 
@@ -71,7 +90,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             result.Warnings.Add(
                 "No downloaded articles were available to measure speed, so only latency was tested. " +
                 "Download something first, then re-run to get a connection recommendation.");
-            Report("done", "Done — latency only.", 100, result, null);
+            Report("done", "Done — latency only.", 100, result, null, includeResult: true);
             return result;
         }
 
@@ -110,7 +129,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
 
             Report("sweep", $"Measuring {have} connection{(have == 1 ? "" : "s")}…", 65, result, have);
             var sample = await MeasureThroughputAsync(
-                ladder, pool, AdaptiveTargetBytes(bootstrap.MbPerSec, profile, Remaining(), have),
+                ladder, pool, AdaptiveTargetBytes(bootstrap.MegaBytesPerSec, profile, Remaining(), have),
                 profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
                 pipeliningDepth: 0, ct).ConfigureAwait(false);
             result.DataUsedBytes += sample.Bytes;
@@ -118,7 +137,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             result.Sweep.Add(new BenchmarkSweepPoint
             {
                 Connections = have,
-                MbPerSec = Math.Round(sample.MbPerSec, 2),
+                MegaBytesPerSec = Math.Round(sample.MegaBytesPerSec, 2),
                 Cv = Math.Round(sample.Cv, 3),
             });
             result.RecommendedConnections = have;
@@ -131,13 +150,13 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             // 3) Throughput sweep — climb connection counts until the knee or the cap.
             var levels = BuildLevels(configuredMaxConnections, profile);
             int? providerCap = null;
-            double lastMbPerSec = 0;
+            double lastMegaBytesPerSec = 0;
             for (var i = 0; i < levels.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
                 var level = levels[i];
 
-                if (SweepRemaining(lastMbPerSec) < MinUsefulBytes(lastMbPerSec, profile))
+                if (SweepRemaining(lastMegaBytesPerSec) < MinUsefulBytes(lastMegaBytesPerSec, profile))
                 {
                     result.BudgetLimited = true;
                     result.Warnings.Add(
@@ -156,7 +175,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
                 }
 
                 var sample = await MeasureThroughputAsync(
-                    ladder, pool, AdaptiveTargetBytes(lastMbPerSec, profile, SweepRemaining(lastMbPerSec), have),
+                    ladder, pool, AdaptiveTargetBytes(lastMegaBytesPerSec, profile, SweepRemaining(lastMegaBytesPerSec), have),
                     profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
                     pipeliningDepth: 0, ct).ConfigureAwait(false);
                 result.DataUsedBytes += sample.Bytes;
@@ -164,30 +183,30 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
                 // Tiny bootstrap target finished in warmup → rate recovered but noisy.
                 // Retry once with a properly sized budget before recording the point.
                 if (sample.ExhaustedDuringWarmup
-                    && sample.MbPerSec > 0
-                    && SweepRemaining(sample.MbPerSec) > MinUsefulBytes(sample.MbPerSec, profile))
+                    && sample.MegaBytesPerSec > 0
+                    && SweepRemaining(sample.MegaBytesPerSec) > MinUsefulBytes(sample.MegaBytesPerSec, profile))
                 {
-                    lastMbPerSec = Math.Max(lastMbPerSec, sample.MbPerSec);
+                    lastMegaBytesPerSec = Math.Max(lastMegaBytesPerSec, sample.MegaBytesPerSec);
                     Report("sweep", $"Re-measuring {have} connection{(have == 1 ? "" : "s")}…",
                         ProgressPercent(15, 75, i, levels.Count), result, have);
                     var retry = await MeasureThroughputAsync(
-                        ladder, pool, AdaptiveTargetBytes(lastMbPerSec, profile, SweepRemaining(lastMbPerSec), have),
+                        ladder, pool, AdaptiveTargetBytes(lastMegaBytesPerSec, profile, SweepRemaining(lastMegaBytesPerSec), have),
                         profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
                         pipeliningDepth: 0, ct).ConfigureAwait(false);
                     result.DataUsedBytes += retry.Bytes;
-                    if (retry.MbPerSec > 0)
+                    if (retry.MegaBytesPerSec > 0)
                         sample = retry;
                 }
 
-                lastMbPerSec = Math.Max(lastMbPerSec, sample.MbPerSec);
+                lastMegaBytesPerSec = Math.Max(lastMegaBytesPerSec, sample.MegaBytesPerSec);
 
                 result.Sweep.Add(new BenchmarkSweepPoint
                 {
                     Connections = have,
-                    MbPerSec = Math.Round(sample.MbPerSec, 2),
+                    MegaBytesPerSec = Math.Round(sample.MegaBytesPerSec, 2),
                     Cv = Math.Round(sample.Cv, 3),
                 });
-                Report("sweep", $"{have} conn → {sample.MbPerSec:0.0} MB/s",
+                Report("sweep", $"{have} conn → {sample.MegaBytesPerSec:0.0} MB/s",
                     ProgressPercent(15, 75, i + 1, levels.Count), result, have);
 
                 if (have < level)
@@ -208,31 +227,31 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             // Confirm may spend into the pipelining reserve if needed for accuracy.
             if (intensity == BenchmarkIntensity.Thorough
                 && result.RecommendedConnections is int knee
-                && Remaining() > MinUsefulBytes(lastMbPerSec, profile))
+                && Remaining() > MinUsefulBytes(lastMegaBytesPerSec, profile))
             {
                 Report("sweep", $"Confirming {knee} connection{(knee == 1 ? "" : "s")}…", 80, result, knee);
                 ladder.ShrinkTo(knee);
                 if (ladder.Count > 0)
                 {
                     var confirm = await MeasureThroughputAsync(
-                        ladder, pool, AdaptiveTargetBytes(lastMbPerSec, profile, Remaining(), knee),
+                        ladder, pool, AdaptiveTargetBytes(lastMegaBytesPerSec, profile, Remaining(), knee),
                         profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
                         pipeliningDepth: 0, ct).ConfigureAwait(false);
                     result.DataUsedBytes += confirm.Bytes;
                     var point = result.Sweep.FirstOrDefault(p => p.Connections == knee);
-                    if (point != null && confirm.MbPerSec > 0)
+                    if (point != null && confirm.MegaBytesPerSec > 0)
                     {
-                        if (point.MbPerSec > 0)
+                        if (point.MegaBytesPerSec > 0)
                         {
                             result.ConfirmDeltaPct = Math.Round(
-                                Math.Abs(confirm.MbPerSec - point.MbPerSec) / point.MbPerSec * 100, 1);
+                                Math.Abs(confirm.MegaBytesPerSec - point.MegaBytesPerSec) / point.MegaBytesPerSec * 100, 1);
                             if (result.ConfirmDeltaPct > 20)
                                 result.Warnings.Add(
                                     "The confirmation run didn't reproduce the measured speed closely, " +
                                     "so the recommendation may shift slightly between runs.");
                         }
 
-                        point.MbPerSec = Math.Round((point.MbPerSec + confirm.MbPerSec) / 2, 2);
+                        point.MegaBytesPerSec = Math.Round((point.MegaBytesPerSec + confirm.MegaBytesPerSec) / 2, 2);
                         point.Cv = Math.Round(Math.Max(point.Cv, confirm.Cv), 3);
                         result.RecommendedConnections = DetectKnee(
                             result.Sweep, providerCap, [], out stillClimbing);
@@ -242,7 +261,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             }
 
             // 4) Pipelining — compare off vs. a few depths at a moderate concurrency.
-            if (result.Sweep.Count > 0 && Remaining() > MinUsefulBytes(lastMbPerSec, profile))
+            if (result.Sweep.Count > 0 && Remaining() > MinUsefulBytes(lastMegaBytesPerSec, profile))
             {
                 var pipeConns = Math.Min(result.RecommendedConnections ?? 1, profile.PipelineTestConnections);
                 if (providerCap.HasValue) pipeConns = Math.Min(pipeConns, providerCap.Value);
@@ -276,7 +295,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
                 "Downloading something recent refreshes the test pool.");
 
         result.Confidence = ComputeConfidence(result);
-        Report("done", "Done.", 100, result, null);
+        Report("done", "Done.", 100, result, null, includeResult: true);
         return result;
     }
 
@@ -318,11 +337,11 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
             pipeliningDepth: 0, ct).ConfigureAwait(false);
         addData(baseline.Bytes);
-        last = baseline.MbPerSec;
-        result.BaselineMbPerSec = Math.Round(baseline.MbPerSec, 2);
+        last = baseline.MegaBytesPerSec;
+        result.BaselineMegaBytesPerSec = Math.Round(baseline.MegaBytesPerSec, 2);
         if (baseline.OpenedConnections == 0) return result;
 
-        var bestMbps = baseline.MbPerSec;
+        var bestMegaBytesPerSec = baseline.MegaBytesPerSec;
         var bestDepth = 0;
         foreach (var depth in depths)
         {
@@ -338,13 +357,13 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
                 profile.WarmupDuration, profile.MeasureWindow, profile.PerLevelMaxDuration,
                 depth, ct).ConfigureAwait(false);
             addData(sample.Bytes);
-            last = Math.Max(last, sample.MbPerSec);
-            result.Tested.Add(new BenchmarkPipeliningPoint { Depth = depth, MbPerSec = Math.Round(sample.MbPerSec, 2) });
-            if (sample.MbPerSec > bestMbps) { bestMbps = sample.MbPerSec; bestDepth = depth; }
+            last = Math.Max(last, sample.MegaBytesPerSec);
+            result.Tested.Add(new BenchmarkPipeliningPoint { Depth = depth, MegaBytesPerSec = Math.Round(sample.MegaBytesPerSec, 2) });
+            if (sample.MegaBytesPerSec > bestMegaBytesPerSec) { bestMegaBytesPerSec = sample.MegaBytesPerSec; bestDepth = depth; }
         }
 
         // Only recommend turning it on if it's a clear (>10%) win over the baseline.
-        if (bestDepth > 0 && baseline.MbPerSec > 0 && bestMbps >= baseline.MbPerSec * 1.10)
+        if (bestDepth > 0 && baseline.MegaBytesPerSec > 0 && bestMegaBytesPerSec >= baseline.MegaBytesPerSec * 1.10)
         {
             result.RecommendEnabled = true;
             result.RecommendedDepth = bestDepth;
@@ -361,7 +380,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
     // ---- Throughput core -------------------------------------------------
 
     private readonly record struct ThroughputSample(
-        double MbPerSec,
+        double MegaBytesPerSec,
         double Cv,
         long Bytes,
         int OpenedConnections,
@@ -525,20 +544,20 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
     // ---- Helpers ---------------------------------------------------------
 
     // Bytes needed to keep the pipe busy through warm-up plus a minimally-useful (~1.5s) window.
-    internal static long MinUsefulBytes(double lastMbPerSec, BenchmarkProfile profile)
+    internal static long MinUsefulBytes(double lastMegaBytesPerSec, BenchmarkProfile profile)
     {
         var seconds = profile.WarmupDuration.TotalSeconds + 1.5;
-        var bytesPerSec = lastMbPerSec > 0 ? lastMbPerSec * 1_000_000 : 2_000_000;
+        var bytesPerSec = lastMegaBytesPerSec > 0 ? lastMegaBytesPerSec * 1_000_000 : 2_000_000;
         return Math.Max(4_000_000, (long)(bytesPerSec * seconds));
     }
 
     // Hold back enough for a pipelining baseline + each tested depth. Caps at 25% of
     // the total budget so small Auto runs still spend most of their quota on the sweep.
     internal static long PipeliningReserveBytes(
-        BenchmarkProfile profile, double lastMbPerSec, long totalBudget)
+        BenchmarkProfile profile, double lastMegaBytesPerSec, long totalBudget)
     {
         var steps = 1 + profile.PipelineDepths.Length;
-        var perStep = MinUsefulBytes(Math.Max(lastMbPerSec, 10), profile);
+        var perStep = MinUsefulBytes(Math.Max(lastMegaBytesPerSec, 10), profile);
         var reserve = perStep * steps;
         var cap = Math.Max(0, totalBudget / 4);
         return Math.Min(reserve, cap);
@@ -549,13 +568,13 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
     // have no speed estimate yet, scale the floor with connection count so parallel
     // workers can't burn a tiny budget during warmup alone.
     internal static long AdaptiveTargetBytes(
-        double lastMbPerSec, BenchmarkProfile profile, long remainingBudget, int connections = 1)
+        double lastMegaBytesPerSec, BenchmarkProfile profile, long remainingBudget, int connections = 1)
     {
         var seconds = (profile.WarmupDuration + profile.MeasureWindow).TotalSeconds;
         long est;
-        if (lastMbPerSec > 0)
+        if (lastMegaBytesPerSec > 0)
         {
-            est = (long)(lastMbPerSec * 1_000_000 * 2.0 * seconds);
+            est = (long)(lastMegaBytesPerSec * 1_000_000 * 2.0 * seconds);
         }
         else
         {
@@ -573,7 +592,7 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
     // are ignored so ARTICLE RTT holes don't force a median of 0. Falls back to the
     // whole-window mean when there aren't enough positive buckets, or when the median
     // is ~0 despite bytes moving in the window.
-    internal static (double MbPerSec, double Cv) ComputeSteadyRate(
+    internal static (double MegaBytesPerSec, double Cv) ComputeSteadyRate(
         IReadOnlyList<(long Bytes, double Seconds)> buckets,
         long fallbackBytes,
         double fallbackSeconds)
@@ -681,12 +700,12 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
 
         // A mostly-zero sweep (poisoned sockets / failed measure windows) must not
         // recommend the lone spike at the connection ceiling.
-        const double minMeaningfulMbPerSec = 0.5;
-        var topTwo = ordered.OrderByDescending(p => p.MbPerSec).Take(2).ToList();
+        const double minMeaningfulMegaBytesPerSec = 0.5;
+        var topTwo = ordered.OrderByDescending(p => p.MegaBytesPerSec).Take(2).ToList();
         if (topTwo.Count < 2
-            || topTwo[0].MbPerSec <= minMeaningfulMbPerSec
-            || topTwo[1].MbPerSec <= minMeaningfulMbPerSec
-            || topTwo[1].MbPerSec < topTwo[0].MbPerSec * 0.10)
+            || topTwo[0].MegaBytesPerSec <= minMeaningfulMegaBytesPerSec
+            || topTwo[1].MegaBytesPerSec <= minMeaningfulMegaBytesPerSec
+            || topTwo[1].MegaBytesPerSec < topTwo[0].MegaBytesPerSec * 0.10)
         {
             warnings.Add(
                 "The speed test couldn't get steady throughput at enough connection levels " +
@@ -696,18 +715,18 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
 
         // Reference peak = mean of the two best points so a single lucky spike can't
         // drag the recommendation around between runs.
-        var peakRef = (topTwo[0].MbPerSec + topTwo[1].MbPerSec) / 2.0;
+        var peakRef = (topTwo[0].MegaBytesPerSec + topTwo[1].MegaBytesPerSec) / 2.0;
         if (peakRef <= 0) return null;
 
-        var knee = ordered.First(p => p.MbPerSec >= 0.92 * peakRef).Connections;
+        var knee = ordered.First(p => p.MegaBytesPerSec >= 0.92 * peakRef).Connections;
         if (providerCap.HasValue) knee = Math.Min(knee, providerCap.Value);
 
-        var best = ordered.Max(p => p.MbPerSec);
+        var best = ordered.Max(p => p.MegaBytesPerSec);
         var peak = ordered[^1];
-        if (peak.MbPerSec >= best - 1e-9 && ordered.Count >= 2)
+        if (peak.MegaBytesPerSec >= best - 1e-9 && ordered.Count >= 2)
         {
             var prev = ordered[^2];
-            if (prev.MbPerSec > 0 && (peak.MbPerSec - prev.MbPerSec) / prev.MbPerSec > 0.08)
+            if (prev.MegaBytesPerSec > 0 && (peak.MegaBytesPerSec - prev.MegaBytesPerSec) / prev.MegaBytesPerSec > 0.08)
             {
                 stillClimbing = true;
                 warnings.Add("Speed was still climbing at the highest level tested — a faster line or even more connections may help.");
@@ -740,7 +759,14 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
     private static int ProgressPercent(int start, int end, int step, int totalSteps) =>
         start + (int)((end - start) * (double)step / Math.Max(1, totalSteps));
 
-    private void Report(string phase, string status, int percent, BenchmarkResult result, int? currentConnections)
+    private void Report(
+        string phase,
+        string status,
+        int percent,
+        BenchmarkResult result,
+        int? currentConnections,
+        string? error = null,
+        bool includeResult = false)
     {
         var update = new BenchmarkProgressUpdate
         {
@@ -753,9 +779,11 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             Sweep = result.Sweep.Select(p => new BenchmarkSweepPoint
             {
                 Connections = p.Connections,
-                MbPerSec = p.MbPerSec,
+                MegaBytesPerSec = p.MegaBytesPerSec,
                 Cv = p.Cv,
             }).ToList(),
+            Result = includeResult ? result : null,
+            Error = error,
         };
         // Fire-and-forget: progress is best-effort and must not block the run.
         _ = websocketManager.SendMessage(WebsocketTopic.BenchmarkProgress, JsonSerializer.Serialize(update, JsonOptions));
