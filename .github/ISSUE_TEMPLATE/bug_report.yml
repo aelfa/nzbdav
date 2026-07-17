@@ -35,7 +35,7 @@ body:
     attributes:
       label: Installation method
       options:
-        - Docker Compose
+        - Official Docker image
         - Dumbarr
         - Built from source
         - Other
