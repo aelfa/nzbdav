@@ -341,22 +341,27 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         if (opened == 0) return new ThroughputSample(0, 0, 0, 0, 0);
 
         var counter = new StrongBox<long>(0);
+        var softStop = new StrongBox<int>(0);
         var dead = new System.Collections.Concurrent.ConcurrentBag<INntpClient>();
-        using var levelCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        levelCts.CancelAfter(maxDuration);
-        var token = levelCts.Token;
+        // Hard cancel is only a safety net (maxDuration / caller abort). Ending the
+        // measure window uses soft-stop so we finish the current BODY cleanly —
+        // cancelling mid-article poisons the socket (drain-limit / desync).
+        using var hardCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        hardCts.CancelAfter(maxDuration);
+        var hardToken = hardCts.Token;
 
         var workers = ladder.Connections
             .Select(conn => Task.Run(async () =>
             {
                 var healthy = await DownloadWorkerAsync(
-                    conn, pool, targetBytes, counter, pipeliningDepth, token).ConfigureAwait(false);
+                    conn, pool, targetBytes, counter, softStop, pipeliningDepth, hardToken)
+                    .ConfigureAwait(false);
                 if (!healthy) dead.Add(conn);
-            }, token))
+            }))
             .ToList();
 
         // Warm-up: let TCP windows open and the first-article latency pass, unmeasured.
-        await SafeDelay(warmup, token).ConfigureAwait(false);
+        await SafeDelay(warmup, hardToken).ConfigureAwait(false);
         var startBytes = Interlocked.Read(ref counter.Value);
         var sw = Stopwatch.StartNew();
 
@@ -364,9 +369,9 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         var buckets = new List<(long Bytes, double Seconds)>();
         var prevBytes = startBytes;
         var prevTime = 0.0;
-        while (sw.Elapsed < window && !token.IsCancellationRequested && !workers.All(w => w.IsCompleted))
+        while (sw.Elapsed < window && !hardToken.IsCancellationRequested && !workers.All(w => w.IsCompleted))
         {
-            await SafeDelay(TimeSpan.FromMilliseconds(500), token).ConfigureAwait(false);
+            await SafeDelay(TimeSpan.FromMilliseconds(500), hardToken).ConfigureAwait(false);
             var nowBytes = Interlocked.Read(ref counter.Value);
             var nowTime = sw.Elapsed.TotalSeconds;
             buckets.Add((nowBytes - prevBytes, nowTime - prevTime));
@@ -375,7 +380,9 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
 
         var endBytes = Interlocked.Read(ref counter.Value);
         var elapsed = Math.Max(sw.Elapsed.TotalSeconds, 0.001);
-        levelCts.Cancel();
+
+        // Soft-stop: stop starting new articles; let in-flight BODY drains finish.
+        Interlocked.Exchange(ref softStop.Value, 1);
         try
         {
             await Task.WhenAll(workers).ConfigureAwait(false);
@@ -391,22 +398,29 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         return new ThroughputSample(steady, cv, totalBytes, opened, elapsed);
     }
 
+    /// <returns>
+    /// True when the connection is still reusable. False when it saw a hard cancel
+    /// or protocol failure and must be disposed (NNTP mid-BODY abort poisons the socket).
+    /// </returns>
     private static async Task<bool> DownloadWorkerAsync(
         INntpClient conn, BenchmarkSegmentPool pool, long targetBytes,
-        StrongBox<long> counter, int depth, CancellationToken ct)
+        StrongBox<long> counter, StrongBox<int> softStop, int depth, CancellationToken hardCt)
     {
         var buffer = new byte[64 * 1024];
         try
         {
             if (depth <= 1)
             {
-                while (!ct.IsCancellationRequested && Interlocked.Read(ref counter.Value) < targetBytes)
+                while (Volatile.Read(ref softStop.Value) == 0
+                       && !hardCt.IsCancellationRequested
+                       && Interlocked.Read(ref counter.Value) < targetBytes)
                 {
                     var id = pool.Next();
                     try
                     {
-                        var response = await conn.DecodedBodyAsync(id, ct).ConfigureAwait(false);
-                        await DrainAsync(response.Stream!, buffer, counter, ct).ConfigureAwait(false);
+                        var response = await conn.DecodedBodyAsync(id, hardCt).ConfigureAwait(false);
+                        // Drain with hardCt only — soft-stop never cancels mid-BODY.
+                        await DrainAsync(response.Stream!, buffer, counter, hardCt).ConfigureAwait(false);
                     }
                     catch (UsenetArticleNotFoundException)
                     {
@@ -416,25 +430,29 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
             }
             else
             {
-                while (!ct.IsCancellationRequested && Interlocked.Read(ref counter.Value) < targetBytes)
+                while (Volatile.Read(ref softStop.Value) == 0
+                       && !hardCt.IsCancellationRequested
+                       && Interlocked.Read(ref counter.Value) < targetBytes)
                 {
                     var batch = pool.NextBatch(depth * 4);
-                    await foreach (var r in conn.DecodedBodiesPipelinedAsync(batch, depth, ct)
-                                       .WithCancellation(ct).ConfigureAwait(false))
+                    // Finish the whole batch once started so pipelined responses stay in sync.
+                    await foreach (var r in conn.DecodedBodiesPipelinedAsync(batch, depth, hardCt)
+                                       .WithCancellation(hardCt).ConfigureAwait(false))
                     {
                         if (r is { Found: true, Stream: not null })
-                            await DrainAsync(r.Stream, buffer, counter, ct).ConfigureAwait(false);
-                        if (ct.IsCancellationRequested || Interlocked.Read(ref counter.Value) >= targetBytes)
+                            await DrainAsync(r.Stream, buffer, counter, hardCt).ConfigureAwait(false);
+                        if (hardCt.IsCancellationRequested)
                             break;
                     }
                 }
             }
 
-            return true;
+            // Hard cancel mid-BODY leaves the connection unusable for the next level.
+            return !hardCt.IsCancellationRequested;
         }
         catch (OperationCanceledException)
         {
-            return true;
+            return false;
         }
         catch (Exception e) when (!e.IsCancellationException())
         {
@@ -477,30 +495,36 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         return Math.Clamp(est, min, max);
     }
 
-    // Median-of-buckets rate + coefficient of variation. Falls back to the whole-window
-    // mean (with a pessimistic CV) when the window produced too few buckets to judge.
+    // Median-of-positive-buckets rate + coefficient of variation. Empty (gap) buckets
+    // are ignored so ARTICLE RTT holes don't force a median of 0. Falls back to the
+    // whole-window mean when there aren't enough positive buckets, or when the median
+    // is ~0 despite bytes moving in the window.
     internal static (double MbPerSec, double Cv) ComputeSteadyRate(
         IReadOnlyList<(long Bytes, double Seconds)> buckets,
         long fallbackBytes,
         double fallbackSeconds)
     {
+        var windowMean = fallbackSeconds > 0.05
+            ? fallbackBytes / fallbackSeconds / 1_000_000.0
+            : 0;
+
         var rates = buckets
-            .Where(b => b.Seconds > 0.05)
+            .Where(b => b.Seconds > 0.05 && b.Bytes > 0)
             .Select(b => b.Bytes / b.Seconds / 1_000_000.0)
             .ToList();
 
         if (rates.Count < 3)
         {
-            var mean = fallbackSeconds > 0.05
-                ? fallbackBytes / fallbackSeconds / 1_000_000.0
-                : 0;
-            return (mean, rates.Count == 0 ? 1.0 : 0.5);
+            return (windowMean, rates.Count == 0 ? 1.0 : 0.5);
         }
 
         var sorted = rates.OrderBy(r => r).ToList();
         var median = sorted.Count % 2 == 1
             ? sorted[sorted.Count / 2]
             : (sorted[sorted.Count / 2 - 1] + sorted[sorted.Count / 2]) / 2.0;
+
+        if (median < 0.05 && windowMean > median)
+            return (windowMean, 0.5);
 
         var avg = rates.Average();
         var cv = avg > 0
@@ -581,10 +605,22 @@ public sealed class UsenetBenchmarkService(WebsocketManager websocketManager, Be
         if (sweep.Count == 0) return null;
         var ordered = sweep.OrderBy(p => p.Connections).ToList();
 
+        // A mostly-zero sweep (poisoned sockets / failed measure windows) must not
+        // recommend the lone spike at the connection ceiling.
+        const double minMeaningfulMbPerSec = 0.5;
+        var meaningful = ordered.Count(p => p.MbPerSec > minMeaningfulMbPerSec);
+        if (meaningful < 2)
+        {
+            warnings.Add(
+                "The speed test couldn't get steady throughput at enough connection levels " +
+                "to make a recommendation. Re-run when idle.");
+            return null;
+        }
+
         // Reference peak = mean of the two best points so a single lucky spike can't
         // drag the recommendation around between runs.
         var peakRef = ordered.OrderByDescending(p => p.MbPerSec).Take(2).Average(p => p.MbPerSec);
-        if (peakRef <= 0) return ordered[0].Connections;
+        if (peakRef <= 0) return null;
 
         var knee = ordered.First(p => p.MbPerSec >= 0.92 * peakRef).Connections;
         if (providerCap.HasValue) knee = Math.Min(knee, providerCap.Value);

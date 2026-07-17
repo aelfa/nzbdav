@@ -47,6 +47,46 @@ public class BenchmarkMathTests
     }
 
     [Fact]
+    public void ComputeSteadyRate_IgnoresEmptyBucketsWhenComputingMedian()
+    {
+        var buckets = new List<(long Bytes, double Seconds)>
+        {
+            (10_000_000, 0.5),
+            (0, 0.5),
+            (0, 0.5),
+            (0, 0.5),
+            (12_000_000, 0.5),
+            (11_000_000, 0.5),
+        };
+
+        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+            buckets, fallbackBytes: 33_000_000, fallbackSeconds: 3.0);
+
+        Assert.Equal(22, mbPerSec, 6);
+        Assert.InRange(cv, 0.07, 0.08);
+    }
+
+    [Fact]
+    public void ComputeSteadyRate_UsesWindowMeanWhenMedianIsZeroButBytesMoved()
+    {
+        // Three tiny positive rates would be needed for median path; with only
+        // empty+one positive bucket we fall back. Force the median≈0 + bytes path
+        // with three near-zero positive buckets and a large window mean.
+        var buckets = new List<(long Bytes, double Seconds)>
+        {
+            (1_000, 0.5),
+            (1_000, 0.5),
+            (1_000, 0.5),
+        };
+
+        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+            buckets, fallbackBytes: 30_000_000, fallbackSeconds: 1.5);
+
+        Assert.Equal(20, mbPerSec, 6);
+        Assert.Equal(0.5, cv);
+    }
+
+    [Fact]
     public void ComputeSteadyRate_ZeroDurationFallbackReturnsZero()
     {
         var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
