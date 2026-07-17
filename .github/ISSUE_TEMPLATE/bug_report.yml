@@ -37,6 +37,7 @@ body:
       options:
         - Official Docker image
         - Docker Compose
+        - Dumbarr
         - Built from source
         - Other
     validations:
