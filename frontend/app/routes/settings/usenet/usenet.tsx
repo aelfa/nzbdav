@@ -26,11 +26,11 @@ const USAGE_POLL_INTERVAL_MS = 10_000;
 
 // Mirrors the camelCase JSON the backend benchmark endpoint + websocket emit.
 type BenchmarkLatency = { minMs: number; avgMs: number; samples: number };
-type BenchmarkSweepPoint = { connections: number; mbPerSec: number; cv?: number };
-type BenchmarkPipeliningPoint = { depth: number; mbPerSec: number };
+type BenchmarkSweepPoint = { connections: number; megaBytesPerSec: number; cv?: number };
+type BenchmarkPipeliningPoint = { depth: number; megaBytesPerSec: number };
 type BenchmarkPipelining = {
     testedAtConnections: number;
-    baselineMbPerSec: number;
+    baselineMegaBytesPerSec: number;
     tested: BenchmarkPipeliningPoint[];
     recommendEnabled: boolean;
     recommendedDepth: number;
@@ -60,6 +60,8 @@ type BenchmarkProgress = {
     dataUsedBytes: number;
     dataBudgetBytes?: number;
     sweep: BenchmarkSweepPoint[];
+    result?: BenchmarkResult | null;
+    error?: string | null;
 };
 type BenchmarkIntensity = "quick" | "thorough";
 
@@ -849,9 +851,21 @@ function ProviderModal({ show, provider, onClose, onSave, onApplyPipelining, def
     // Stop any in-flight speed test when the modal closes or unmounts so it
     // aborts on the backend and frees its connections immediately.
     useEffect(() => {
-        if (!show) benchmarkAbortRef.current?.abort();
+        if (!show) {
+            benchmarkAbortRef.current?.abort();
+            void fetch('/api/benchmark-usenet-connection', {
+                method: 'POST',
+                body: (() => { const f = new FormData(); f.append('cancel', 'true'); return f; })(),
+            }).catch(() => { /* best-effort cancel */ });
+        }
     }, [show]);
-    useEffect(() => () => benchmarkAbortRef.current?.abort(), []);
+    useEffect(() => () => {
+        benchmarkAbortRef.current?.abort();
+        void fetch('/api/benchmark-usenet-connection', {
+            method: 'POST',
+            body: (() => { const f = new FormData(); f.append('cancel', 'true'); return f; })(),
+        }).catch(() => { /* best-effort cancel */ });
+    }, []);
 
     const handleTestConnection = useCallback(async () => {
         setIsTestingConnection(true);
@@ -892,25 +906,49 @@ function ProviderModal({ show, provider, onClose, onSave, onApplyPipelining, def
     const handleAutoTune = useCallback(async (verifyConnections?: number) => {
         // Abort any previous run still in flight before starting a new one.
         benchmarkAbortRef.current?.abort();
+        await fetch('/api/benchmark-usenet-connection', {
+            method: 'POST',
+            body: (() => { const f = new FormData(); f.append('cancel', 'true'); return f; })(),
+        }).catch(() => { /* best-effort */ });
+
         const controller = new AbortController();
         benchmarkAbortRef.current = controller;
+        let finished = false;
+        let unsubscribeProgress = () => {};
+        const finish = (result?: BenchmarkResult | null, error?: string | null) => {
+            if (finished) return;
+            finished = true;
+            if (result) {
+                setBenchmarkResult(result);
+                setConnectionTested(true);
+                setBenchmarkError(null);
+            } else if (error) {
+                setBenchmarkError(error);
+            }
+            setIsBenchmarking(false);
+            setBenchmarkProgress(null);
+            if (benchmarkAbortRef.current === controller) benchmarkAbortRef.current = null;
+            unsubscribeProgress();
+        };
 
         setIsBenchmarking(true);
         setBenchmarkError(null);
         setBenchmarkResult(null);
         setBenchmarkProgress({ phase: "latency", status: "Starting speed test…", percent: 0, dataUsedBytes: 0, sweep: [] });
 
-        // Live progress over the websocket — best-effort eye-candy; the POST
-        // below returns the authoritative result regardless.
-        const unsubscribeProgress = subscribeWebsocketTopics(
+        // Progress + terminal result over the websocket. The POST may be dropped by
+        // an intermediary timeout on large budgets; the done frame still finishes the UI.
+        unsubscribeProgress = subscribeWebsocketTopics(
             { bench: "state" },
             (topic, message) => {
                 if (topic !== "bench") return;
                 try {
                     const update = JSON.parse(message) as BenchmarkProgress;
-                    // Ignore the terminal "done" frame (incl. any replayed from a
-                    // previous run) so the bar doesn't flash to 100% then restart.
-                    if (update.phase !== "done") setBenchmarkProgress(update);
+                    if (update.phase === "done") {
+                        finish(update.result ?? null, update.error ?? null);
+                        return;
+                    }
+                    setBenchmarkProgress(update);
                 } catch { /* ignore malformed progress */ }
             },
         );
@@ -932,27 +970,31 @@ function ProviderModal({ show, provider, onClose, onSave, onApplyPipelining, def
                 method: 'POST', body: formData, signal: controller.signal,
             });
             const data = await response.json().catch(() => null);
-            if (!response.ok) {
-                setBenchmarkError(data?.error || "The speed test couldn't run. Please try again.");
+            if (finished) return;
+
+            if (response.ok && data?.status && data.result) {
+                finish(data.result as BenchmarkResult, null);
                 return;
             }
-            if (!data?.status || !data.result) {
-                setBenchmarkError(data?.error || "The speed test couldn't run.");
+            if (data?.error) {
+                finish(null, data.error);
                 return;
             }
-            setBenchmarkResult(data.result as BenchmarkResult);
-            setConnectionTested(true); // a successful benchmark also proves the connection
+            // POST dropped or returned an empty body (common when a proxy hits an
+            // idle/TTFB limit). Keep listening for the websocket done frame.
+            setBenchmarkProgress(prev => prev
+                ? { ...prev, status: "Speed test still running…" }
+                : { phase: "sweep", status: "Speed test still running…", percent: 50, dataUsedBytes: 0, sweep: [] });
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') {
-                // Cancelled by the user (Cancel button or closing the modal) — not an error.
-                setBenchmarkProgress(null);
-            } else {
-                setBenchmarkError("Network error: " + (error instanceof Error ? error.message : "Unknown error"));
+                // Cancelled by the user (Cancel button or closing the modal).
+                if (!finished) finish(null, null);
+                return;
             }
-        } finally {
-            setIsBenchmarking(false);
-            if (benchmarkAbortRef.current === controller) benchmarkAbortRef.current = null;
-            unsubscribeProgress();
+            // Network / proxy drop mid-run: keep listening for the websocket done frame.
+            setBenchmarkProgress(prev => prev
+                ? { ...prev, status: "Speed test still running…" }
+                : { phase: "sweep", status: "Speed test still running…", percent: 50, dataUsedBytes: 0, sweep: [] });
         }
     }, [host, port, useSsl, user, pass, maxConnections, intensity, pipeliningOnly, dataBudget]);
 
@@ -971,6 +1013,12 @@ function ProviderModal({ show, provider, onClose, onSave, onApplyPipelining, def
 
     const handleCancelBenchmark = useCallback(() => {
         benchmarkAbortRef.current?.abort();
+        void fetch('/api/benchmark-usenet-connection', {
+            method: 'POST',
+            body: (() => { const f = new FormData(); f.append('cancel', 'true'); return f; })(),
+        }).catch(() => { /* best-effort cancel */ });
+        setIsBenchmarking(false);
+        setBenchmarkProgress(null);
     }, []);
 
     const handleSave = useCallback(() => {
@@ -1335,11 +1383,11 @@ function BenchmarkPanel(props: BenchmarkPanelProps) {
     const recommended = result?.recommendedConnections ?? null;
     const livePoints = isBenchmarking ? (progress?.sweep ?? []) : (result?.sweep ?? []);
     const bestSpeed = result?.throughputTested && result.sweep.length > 0
-        ? Math.max(...result.sweep.map(p => p.mbPerSec))
+        ? Math.max(...result.sweep.map(p => p.megaBytesPerSec))
         : null;
     const pipe = result?.pipelining ?? null;
-    const pipeBest = pipe && pipe.tested.length > 0 ? Math.max(...pipe.tested.map(t => t.mbPerSec)) : (pipe?.baselineMbPerSec ?? 0);
-    const pipeGainPct = pipe && pipe.baselineMbPerSec > 0 ? Math.round((pipeBest / pipe.baselineMbPerSec - 1) * 100) : 0;
+    const pipeBest = pipe && pipe.tested.length > 0 ? Math.max(...pipe.tested.map(t => t.megaBytesPerSec)) : (pipe?.baselineMegaBytesPerSec ?? 0);
+    const pipeGainPct = pipe && pipe.baselineMegaBytesPerSec > 0 ? Math.round((pipeBest / pipe.baselineMegaBytesPerSec - 1) * 100) : 0;
     const canApply = !!result && result.throughputTested && (recommended != null || (result.pipeliningOnly && !!pipe));
     const phaseIndex = progress
         ? Math.max(0, BENCH_PHASES.findIndex(p => p.id === progress.phase))
@@ -1538,7 +1586,7 @@ function BenchmarkPanel(props: BenchmarkPanelProps) {
                     ) : result.verificationRun && result.sweep[0] ? (
                         <div className="mt-4 text-sm leading-relaxed text-base-content/80">
                             Verified: <strong className="font-semibold text-base-content">
-                                {result.sweep[0].mbPerSec} MB/s
+                                {result.sweep[0].megaBytesPerSec} MB/s
                             </strong>{" "}
                             at <strong className="font-semibold text-base-content">
                                 {result.sweep[0].connections} connection{result.sweep[0].connections === 1 ? "" : "s"}
@@ -1636,22 +1684,22 @@ function BenchmarkPanel(props: BenchmarkPanelProps) {
 }
 
 function SweepChart({ points, recommended }: { points: BenchmarkSweepPoint[]; recommended: number | null }) {
-    const max = Math.max(...points.map(p => p.mbPerSec), 0.0001);
+    const max = Math.max(...points.map(p => p.megaBytesPerSec), 0.0001);
     return (
         <div className="mt-4">
             <div className="flex h-[150px] items-end gap-2">
                 {points.map((p, i) => {
                     const isRec = recommended != null && p.connections === recommended;
-                    const height = Math.max(4, Math.round((p.mbPerSec / max) * 104));
+                    const height = Math.max(4, Math.round((p.megaBytesPerSec / max) * 104));
                     return (
                         <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                             <span className={`font-mono text-[10.5px] tabular-nums whitespace-nowrap ${isRec ? "font-semibold text-primary" : "text-base-content/45"}`}>
-                                {p.mbPerSec >= 10 ? p.mbPerSec.toFixed(0) : p.mbPerSec.toFixed(1)}
+                                {p.megaBytesPerSec >= 10 ? p.megaBytesPerSec.toFixed(0) : p.megaBytesPerSec.toFixed(1)}
                             </span>
                             <div
                                 className={`w-full max-w-8 rounded-t transition-all duration-200 ease-in-out ${isRec ? "bg-primary" : "bg-base-content/25"}`}
                                 style={{ height: `${height}px` }}
-                                title={`${p.connections} connections → ${p.mbPerSec.toFixed(1)} MB/s`}
+                                title={`${p.connections} connections → ${p.megaBytesPerSec.toFixed(1)} MB/s`}
                             />
                             <span className={`font-mono text-[11px] tabular-nums ${isRec ? "font-semibold text-primary" : "text-base-content/45"}`}>
                                 {p.connections}
@@ -1670,28 +1718,28 @@ function SweepChart({ points, recommended }: { points: BenchmarkSweepPoint[]; re
 
 function DepthChart({ pipe }: { pipe: BenchmarkPipelining }) {
     const points = [
-        { label: "Off", mbPerSec: pipe.baselineMbPerSec, rec: !pipe.recommendEnabled },
+        { label: "Off", megaBytesPerSec: pipe.baselineMegaBytesPerSec, rec: !pipe.recommendEnabled },
         ...pipe.tested.map(t => ({
             label: String(t.depth),
-            mbPerSec: t.mbPerSec,
+            megaBytesPerSec: t.megaBytesPerSec,
             rec: pipe.recommendEnabled && t.depth === pipe.recommendedDepth,
         })),
     ];
-    const max = Math.max(...points.map(p => p.mbPerSec), 0.0001);
+    const max = Math.max(...points.map(p => p.megaBytesPerSec), 0.0001);
     return (
         <div className="mt-4">
             <div className="flex h-[150px] items-end gap-2">
                 {points.map((p, i) => {
-                    const height = Math.max(4, Math.round((p.mbPerSec / max) * 104));
+                    const height = Math.max(4, Math.round((p.megaBytesPerSec / max) * 104));
                     return (
                         <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                             <span className={`font-mono text-[10.5px] tabular-nums whitespace-nowrap ${p.rec ? "font-semibold text-primary" : "text-base-content/45"}`}>
-                                {p.mbPerSec >= 10 ? p.mbPerSec.toFixed(0) : p.mbPerSec.toFixed(1)}
+                                {p.megaBytesPerSec >= 10 ? p.megaBytesPerSec.toFixed(0) : p.megaBytesPerSec.toFixed(1)}
                             </span>
                             <div
                                 className={`w-full max-w-8 rounded-t transition-all duration-200 ease-in-out ${p.rec ? "bg-primary" : "bg-base-content/25"}`}
                                 style={{ height: `${height}px` }}
-                                title={`${p.label} → ${p.mbPerSec.toFixed(1)} MB/s`}
+                                title={`${p.label} → ${p.megaBytesPerSec.toFixed(1)} MB/s`}
                             />
                             <span className={`font-mono text-[11px] tabular-nums ${p.rec ? "font-semibold text-primary" : "text-base-content/45"}`}>
                                 {p.label}

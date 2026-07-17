@@ -14,9 +14,9 @@ public class BenchmarkMathTests
             (11_000_000, 0.5),
         };
 
-        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(buckets, 0, 0);
+        var (megaBytesPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(buckets, 0, 0);
 
-        Assert.Equal(22, mbPerSec, 6);
+        Assert.Equal(22, megaBytesPerSec, 6);
         Assert.InRange(cv, 0.07, 0.08);
     }
 
@@ -39,10 +39,10 @@ public class BenchmarkMathTests
             (12_000_000, 0.5),
         };
 
-        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+        var (megaBytesPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
             buckets, fallbackBytes: 9_000_000, fallbackSeconds: 0.5);
 
-        Assert.Equal(18, mbPerSec, 6);
+        Assert.Equal(18, megaBytesPerSec, 6);
         Assert.True(cv >= 0.5);
     }
 
@@ -59,10 +59,10 @@ public class BenchmarkMathTests
             (11_000_000, 0.5),
         };
 
-        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+        var (megaBytesPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
             buckets, fallbackBytes: 33_000_000, fallbackSeconds: 3.0);
 
-        Assert.Equal(22, mbPerSec, 6);
+        Assert.Equal(22, megaBytesPerSec, 6);
         Assert.InRange(cv, 0.07, 0.08);
     }
 
@@ -79,20 +79,20 @@ public class BenchmarkMathTests
             (1_000, 0.5),
         };
 
-        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+        var (megaBytesPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
             buckets, fallbackBytes: 30_000_000, fallbackSeconds: 1.5);
 
-        Assert.Equal(20, mbPerSec, 6);
+        Assert.Equal(20, megaBytesPerSec, 6);
         Assert.Equal(0.5, cv);
     }
 
     [Fact]
     public void ComputeSteadyRate_ZeroDurationFallbackReturnsZero()
     {
-        var (mbPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
+        var (megaBytesPerSec, cv) = UsenetBenchmarkService.ComputeSteadyRate(
             [], fallbackBytes: 9_000_000, fallbackSeconds: 0);
 
-        Assert.Equal(0, mbPerSec);
+        Assert.Equal(0, megaBytesPerSec);
         Assert.Equal(1, cv);
     }
 
@@ -187,7 +187,7 @@ public class BenchmarkMathTests
             BudgetLimited = budgetLimited,
             StillClimbing = stillClimbing,
             RecommendedConnections = 1,
-            Sweep = [new BenchmarkSweepPoint { Connections = 1, MbPerSec = 10, Cv = cv }],
+            Sweep = [new BenchmarkSweepPoint { Connections = 1, MegaBytesPerSec = 10, Cv = cv }],
         };
 
         Assert.Equal(expected, UsenetBenchmarkService.ComputeConfidence(result));
@@ -202,9 +202,9 @@ public class BenchmarkMathTests
             RecommendedConnections = 16,
             Sweep =
             [
-                new BenchmarkSweepPoint { Connections = 1, MbPerSec = 10, Cv = 0.8 },
-                new BenchmarkSweepPoint { Connections = 8, MbPerSec = 80, Cv = 0.05 },
-                new BenchmarkSweepPoint { Connections = 16, MbPerSec = 100, Cv = 0.08 },
+                new BenchmarkSweepPoint { Connections = 1, MegaBytesPerSec = 10, Cv = 0.8 },
+                new BenchmarkSweepPoint { Connections = 8, MegaBytesPerSec = 80, Cv = 0.05 },
+                new BenchmarkSweepPoint { Connections = 16, MegaBytesPerSec = 100, Cv = 0.08 },
             ],
         };
 
@@ -220,7 +220,7 @@ public class BenchmarkMathTests
             WrappedPool = true,
             ConfirmDeltaPct = 3,
             RecommendedConnections = 8,
-            Sweep = [new BenchmarkSweepPoint { Connections = 8, MbPerSec = 40, Cv = 0.05 }],
+            Sweep = [new BenchmarkSweepPoint { Connections = 8, MegaBytesPerSec = 40, Cv = 0.05 }],
         };
 
         Assert.Equal("high", UsenetBenchmarkService.ComputeConfidence(result));
@@ -234,7 +234,7 @@ public class BenchmarkMathTests
             ThroughputTested = true,
             ConfirmDeltaPct = 25,
             RecommendedConnections = 8,
-            Sweep = [new BenchmarkSweepPoint { Connections = 8, MbPerSec = 40, Cv = 0.05 }],
+            Sweep = [new BenchmarkSweepPoint { Connections = 8, MegaBytesPerSec = 40, Cv = 0.05 }],
         };
 
         Assert.Equal("medium", UsenetBenchmarkService.ComputeConfidence(result));
@@ -251,8 +251,8 @@ public class BenchmarkMathTests
             RecommendedConnections = 8,
             Sweep =
             [
-                new BenchmarkSweepPoint { Connections = 4, MbPerSec = 38, Cv = 0.05 },
-                new BenchmarkSweepPoint { Connections = 8, MbPerSec = 40, Cv = 0.05 },
+                new BenchmarkSweepPoint { Connections = 4, MegaBytesPerSec = 38, Cv = 0.05 },
+                new BenchmarkSweepPoint { Connections = 8, MegaBytesPerSec = 40, Cv = 0.05 },
             ],
         };
 

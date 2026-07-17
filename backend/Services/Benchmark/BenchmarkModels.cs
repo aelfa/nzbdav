@@ -81,7 +81,7 @@ public sealed class BenchmarkLatency
 public sealed class BenchmarkSweepPoint
 {
     public int Connections { get; set; }
-    public double MbPerSec { get; set; }
+    public double MegaBytesPerSec { get; set; }
 
     /// <summary>Coefficient of variation of throughput across sampling buckets (0 = perfectly steady).</summary>
     public double Cv { get; set; }
@@ -90,13 +90,13 @@ public sealed class BenchmarkSweepPoint
 public sealed class BenchmarkPipeliningPoint
 {
     public int Depth { get; set; }
-    public double MbPerSec { get; set; }
+    public double MegaBytesPerSec { get; set; }
 }
 
 public sealed class BenchmarkPipelining
 {
     public int TestedAtConnections { get; set; }
-    public double BaselineMbPerSec { get; set; }
+    public double BaselineMegaBytesPerSec { get; set; }
     public List<BenchmarkPipeliningPoint> Tested { get; set; } = [];
     public bool RecommendEnabled { get; set; }
     public int RecommendedDepth { get; set; }
@@ -165,4 +165,10 @@ public sealed class BenchmarkProgressUpdate
     public long DataUsedBytes { get; init; }
     public long DataBudgetBytes { get; init; }
     public List<BenchmarkSweepPoint> Sweep { get; init; } = [];
+
+    /// <summary>Set on the terminal <c>done</c> frame so the UI can finish even if the HTTP POST was dropped.</summary>
+    public BenchmarkResult? Result { get; init; }
+
+    /// <summary>Set on the terminal <c>done</c> frame when the run failed after starting.</summary>
+    public string? Error { get; init; }
 }
