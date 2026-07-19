@@ -3,15 +3,13 @@
 >
 > Early adopters are reporting **2x network throughput** capability and a **400% reduction in seek time**.
 
-<p align="center">
-  <img width="1101" height="238" alt="NzbDAV" src="https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4" />
-</p>
-
 <h1 align="center">NzbDAV</h1>
 
 <p align="center">
   <strong>Mount NZBs as a virtual filesystem and stream directly from Usenet — without downloading full media files first.</strong>
 </p>
+
+<img width="1394" height="1078" alt="image" src="https://github.com/user-attachments/assets/37649514-bca5-471f-9556-0d34de2bd8e5" />
 
 <p align="center">
   <a href="https://github.com/nzbdav/nzbdav/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/nzbdav/nzbdav" /></a>
