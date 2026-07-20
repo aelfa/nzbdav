@@ -32,7 +32,7 @@ Please add feature requests and issues over on our [Issue Tracker](https://githu
 
 This project is a maintained fork of [nzbdav-dev/nzbdav](https://github.com/nzbdav-dev/nzbdav). We took ownership of the full Usenet streaming stack — nzbdav, UsenetSharp, RapidYencSharp, rapidyenc, and SharpCompress — so playback, connection, and decoding fixes could land in the right layer instead of waiting on a single upstream dependency chain.
 
-Read the full story in the [release announcement](https://nzbdav.github.io/nzbdav/release-announcement/).
+Read the full story in the [about page](https://nzbdav.com/community/about/).
 
 ## Special thanks
 
@@ -164,11 +164,11 @@ You'll also want to set a username and password for the WebDAV server itself.
 
 ## Documentation
 
-Full documentation is published at [nzbdav.github.io/nzbdav](https://nzbdav.github.io/nzbdav/).
+Full documentation is published at [nzbdav.com](https://nzbdav.com/).
 
-The [0.7.x release announcement](https://nzbdav.github.io/nzbdav/release-announcement/) summarizes the coordinated stack releases (nzbdav, UsenetSharp, RapidYencSharp, rapidyenc), .NET 10 migration, network performance work, and our audit of upstream issues and PRs.
+The [about page](https://nzbdav.com/community/about/) covers project heritage and the managed library ecosystem (UsenetSharp, RapidYencSharp, rapidyenc, SharpCompress).
 
-The [comprehensive setup guide](https://nzbdav.github.io/nzbdav/setup-guide/) covers everything needed for a full production deployment:
+Start with the [getting started guide](https://nzbdav.com/getting-started/) for a full production deployment:
 
 * **Docker Compose** — persistent deployment, container health checks, and updates
 * **Import strategies** — Rclone symlinks for Plex or STRM files for Emby/Jellyfin
@@ -176,7 +176,8 @@ The [comprehensive setup guide](https://nzbdav.github.io/nzbdav/setup-guide/) co
 * **Integrations** — automating Radarr/Sonarr queue management and repairs
 * **Stremio** — streaming Usenet on demand via AIOStreams
 * **Search profiles** — token-scoped Newznab, Addon, and JSON adapter setup
-* **Watchtower** — proactive wanted-list resolution and readiness controls in the [Watchtower guide](https://nzbdav.github.io/nzbdav/watchtower/)
+* **Watchtower** — proactive wanted-list resolution in the [Watchtower guide](https://nzbdav.com/features/watchtower/)
+* **Configuration** — [Settings walkthrough](https://nzbdav.com/configuration/) and [environment variables](https://nzbdav.com/configuration/environment-variables/)
 
 ## Development
 

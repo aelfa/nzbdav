@@ -1,0 +1,39 @@
+# Troubleshooting
+
+## Container unhealthy / won't start
+
+- Check `docker logs nzbdav` for migration or backend health failures.
+- Ensure `CONFIG_PATH` (`/config`) is writable by `PUID`/`PGID`.
+- Frontend `/healthz` should pass during long migrations; backend `/health` must eventually succeed.
+
+## WebDAV or playback fails
+
+- Confirm WebDAV username/password.
+- Behind a proxy: TLS, `/ws` Upgrade, `SECURE_COOKIES`, Base URL / `TRUST_PROXY`.
+- Overview **Active Reads**: unexpected traffic → rclone VFS or media-server scans.
+- Try disabling segment cache or adjusting Max Download Connections — [WebDAV](../configuration/webdav.md).
+
+## *Arr won't import
+
+- Paths must match exactly between NzbDav completed path and *Arr containers.
+- Symlinks: rclone mount healthy? `ls` shows `completed-symlinks` and `.ids`?
+- STRM: Base URL reachable from Emby/Jellyfin?
+- Check Automatic Queue Management rules — [Arrs](../configuration/arrs.md).
+
+## `addurl` SSRF / private indexer
+
+Allow Docker DNS or LAN hosts under **Trusted local hosts** — [SABnzbd API](../features/sab-api.md).
+
+## Why did files disappear?
+
+See [Deletion audit](../operations/deletion-audit.md) — history retention ≠ deleting mounts; orphan cleanup and *Arr actions can remove content.
+
+## Provider / missing articles
+
+- Circuit breaker may pause a bad provider — check Usenet settings and Overview.
+- Storage groups skip sibling resellers after a miss — only group identical upstream storage.
+- Health/repairs can replace unhealthy library items — [Health and repairs](../operations/health-repairs.md).
+
+## Still stuck
+
+[Open an issue](https://github.com/nzbdav/nzbdav/issues) with logs (redact credentials). For local stream debugging, see [Contributing](../community/contributing.md).

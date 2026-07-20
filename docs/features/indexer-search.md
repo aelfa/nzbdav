@@ -1,0 +1,21 @@
+# Indexer search
+
+Configure Newznab indexers under **Settings → Indexers**, then search from the UI or expose them through **Search profiles**.
+
+## Profiles and adapters
+
+Each profile selects indexers and optional adapters:
+
+| Adapter | Use |
+|---------|-----|
+| Newznab | `http://nzbdav:3000/adapters/newznab/{token}` for Prowlarr/*Arr |
+| Addon | Manifest at `/adapters/addon/{token}/manifest.json` |
+| JSON | `GET /api/search/{token}/lookup?...` |
+
+Treat profile tokens as secrets. Play links in results have a configurable lifetime (**Watchdog → Search link lifetime**).
+
+## Filters
+
+Manual regex excludes plus synced remote lists (e.g. TRaSH-style JSON). Synced patterns refresh on a schedule; last-good cache survives temporary URL failures.
+
+[Indexers](../configuration/indexers.md) · [Profiles](../configuration/profiles.md)

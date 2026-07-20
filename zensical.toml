@@ -1,36 +1,107 @@
 [project]
 site_name = "NzbDav"
 site_description = "Mount NZBs as a virtual filesystem and stream directly from Usenet"
-site_url = "https://nzbdav.github.io/nzbdav/"
+site_url = "https://nzbdav.com/"
 docs_dir = "docs"
 site_dir = "site"
 repo_url = "https://github.com/nzbdav/nzbdav"
 repo_name = "nzbdav/nzbdav"
 edit_uri = "edit/main/docs/"
 copyright = "NzbDav is released under the MIT License"
+extra_css = ["stylesheets/extra.css"]
 
 nav = [
   { "Home" = "index.md" },
-  { "Setup guide" = "setup-guide.md" },
-  { "SABnzbd API compatibility" = "sab-api.md" },
-  { "Watchtower" = "watchtower.md" },
-  { "NNTP pipelining" = "nntp-pipelining.md" },
-  { "Contributing" = "contributing.md" },
-  { "Release announcement" = "release-announcement.md" },
+  { "Getting started" = [
+    { "Overview" = "getting-started/index.md" },
+    { "Docker" = "getting-started/docker.md" },
+    { "First run" = "getting-started/first-run.md" },
+    { "Connect Radarr/Sonarr" = "getting-started/connect-arr.md" },
+  ]},
+  { "Guides" = [
+    { "Architecture" = "guides/architecture.md" },
+    { "Import strategies" = "guides/import-strategies.md" },
+    { "Mounting WebDAV" = "guides/mounting-webdav.md" },
+    { "Media servers" = "guides/media-servers.md" },
+    { "Stremio" = "guides/stremio.md" },
+    { "Backups and upgrades" = "guides/backups-upgrades.md" },
+    { "Troubleshooting" = "guides/troubleshooting.md" },
+  ]},
+  { "Features" = [
+    { "Overview" = "features/index.md" },
+    { "WebDAV filesystem" = "features/webdav-filesystem.md" },
+    { "Streaming and seeking" = "features/streaming-seeking.md" },
+    { "Archives" = "features/archives.md" },
+    { "Multi-provider" = "features/multi-provider.md" },
+    { "Indexer search" = "features/indexer-search.md" },
+    { "Watchtower" = "features/watchtower.md" },
+    { "Warden, Watchdog, Preflight" = "features/warden-watchdog-preflight.md" },
+    { "NNTP pipelining" = "features/nntp-pipelining.md" },
+    { "SABnzbd API" = "features/sab-api.md" },
+  ]},
+  { "Configuration" = [
+    { "Overview" = "configuration/index.md" },
+    { "Usenet" = "configuration/usenet.md" },
+    { "Indexers" = "configuration/indexers.md" },
+    { "Search profiles" = "configuration/profiles.md" },
+    { "Watchdog" = "configuration/watchdog.md" },
+    { "Preflight" = "configuration/preflight.md" },
+    { "Watchtower" = "configuration/watchtower.md" },
+    { "Warden" = "configuration/warden.md" },
+    { "SABnzbd" = "configuration/sabnzbd.md" },
+    { "WebDAV" = "configuration/webdav.md" },
+    { "Radarr/Sonarr" = "configuration/arrs.md" },
+    { "Rclone" = "configuration/rclone.md" },
+    { "Repairs" = "configuration/repairs.md" },
+    { "Maintenance" = "configuration/maintenance.md" },
+    { "Backup and restore" = "configuration/backup.md" },
+    { "Environment variables" = "configuration/environment-variables.md" },
+  ]},
+  { "Use cases" = [
+    { "Overview" = "use-cases/index.md" },
+    { "Infinite library with *Arr" = "use-cases/infinite-library-arr.md" },
+    { "Streaming only" = "use-cases/streaming-only.md" },
+    { "Multi-provider failover" = "use-cases/multi-provider-failover.md" },
+  ]},
+  { "Operations" = [
+    { "Health and repairs" = "operations/health-repairs.md" },
+    { "Retention and cleanup" = "operations/retention-cleanup.md" },
+    { "Logs and crash dumps" = "operations/logs-crash-dumps.md" },
+    { "Deletion audit" = "operations/deletion-audit.md" },
+  ]},
+  { "Community" = [
+    { "GitHub" = "community/github.md" },
+    { "Contributing" = "community/contributing.md" },
+    { "Changelog" = "community/changelog.md" },
+    { "About" = "community/about.md" },
+    { "0.7 stack announcement" = "community/history/release-0.7.md" },
+  ]},
 ]
 
 [project.theme]
+custom_dir = "overrides"
+logo = "assets/logo.svg"
+favicon = "assets/favicon.svg"
 features = [
+  "announce.dismiss",
   "content.action.edit",
   "content.action.view",
   "content.code.copy",
+  "content.tabs.link",
   "navigation.expand",
+  "navigation.instant",
   "navigation.sections",
+  "navigation.tabs",
   "navigation.top",
   "navigation.tracking",
   "search.highlight",
+  "search.suggest",
   "toc.follow",
 ]
+
+[project.theme.font]
+text = "DM Sans"
+code = "JetBrains Mono"
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme)"
@@ -39,19 +110,39 @@ toggle = { icon = "material/brightness-auto", name = "Switch to light mode" }
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"
-primary = "indigo"
-accent = "indigo"
+primary = "custom"
+accent = "custom"
 toggle = { icon = "material/brightness-7", name = "Switch to dark mode" }
 
 [[project.theme.palette]]
 media = "(prefers-color-scheme: dark)"
 scheme = "slate"
-primary = "indigo"
-accent = "indigo"
+primary = "custom"
+accent = "custom"
 toggle = { icon = "material/brightness-4", name = "Switch to system preference" }
 
 [project.theme.icon]
 repo = "fontawesome/brands/github"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/nzbdav/nzbdav"
+name = "GitHub"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/docker"
+link = "https://github.com/nzbdav/nzbdav/pkgs/container/nzbdav"
+name = "GHCR"
+
+[[project.extra.social]]
+icon = "material/tag"
+link = "https://github.com/nzbdav/nzbdav/releases"
+name = "Releases"
+
+[[project.extra.social]]
+icon = "material/bug"
+link = "https://github.com/nzbdav/nzbdav/issues"
+name = "Issues"
 
 [project.markdown_extensions.admonition]
 [project.markdown_extensions.attr_list]
@@ -68,7 +159,15 @@ pygments_lang_class = true
 
 [project.markdown_extensions.pymdownx.inlinehilite]
 [project.markdown_extensions.pymdownx.snippets]
+[project.markdown_extensions.pymdownx.emoji]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+
 [project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
 [project.markdown_extensions.pymdownx.tabbed]
 alternate_style = true
 

@@ -1,0 +1,46 @@
+# SABnzbd API compatibility
+
+NzbDav implements the SABnzbd-compatible operations used by Sonarr, Radarr, and similar download clients. It is not a complete replacement for SABnzbd's administrative API.
+
+## Supported operations
+
+- `version`, `status`, `fullstatus`, `get_config`, and `get_cats`
+- `addfile` and `addurl`
+- `queue` listing and `queue&name=delete`
+- `history` listing and `history&name=delete`
+
+Queue and history filters accept both `cat` and `category`. The default category sentinel returned by `get_cats` is `*`.
+
+## Intentional differences
+
+- Job identifiers are UUIDs rather than `SABnzbd_nzo_*` strings. Treat them as opaque values.
+- Responses are JSON. The `output=xml` option is not implemented.
+- Queue and history roots contain the fields needed by supported download clients rather than every SABnzbd UI field.
+- History has no separate archive tier. `history&name=delete` permanently removes matching history rows.
+- **Ignore SAB history limit** can ignore a client's `limit`; NzbDav still enforces a server-side maximum page size.
+- Authentication failures use HTTP error status codes instead of always returning HTTP 200 with an error body.
+
+## `addurl` and private / LAN hosts
+
+`mode=addurl` fetches the NZB from the URL the download client supplies. Before each hop (including redirects), NzbDav rejects destinations that resolve to a non-public IP — an SSRF guard that also blocks Docker DNS / RFC1918 indexers unless allowlisted.
+
+Allow destinations under **Settings → SABnzbd → Trusted local hosts** (`api.addurl-trusted-hosts`):
+
+| Entry | Meaning |
+|-------|---------|
+| `prowlarr` / `hydra.lan` | Hostname match (case-insensitive) |
+| `192.168.1.50` | Exact IP |
+| `192.168.1.0/24` / `fd00::/8` | CIDR for resolved addresses |
+| `*` | Trust any non-public address (disables the guard) |
+
+Only list hosts you control. Prefer `mode=addfile` when the client can upload the NZB itself.
+
+The same allowlist can be set with `TRUSTED_INTERNAL_HOSTS` when the UI setting is empty — [Environment variables](../configuration/environment-variables.md).
+
+## Delete behavior
+
+Queue delete accepts UUID(s), repeated `value` parameters, or `value=all`. SAB `del_files=1` has no extra effect (no incomplete-download directory).
+
+History delete accepts UUIDs, `value=all`, or `value=failed`. The admin UI can delete mounted content for completed jobs with NzbDav-specific `del_completed_files=1` — download clients should **not** send this after importing a symlink/STRM, or playback sources disappear.
+
+[SABnzbd settings](../configuration/sabnzbd.md)

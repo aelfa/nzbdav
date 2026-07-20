@@ -1,174 +1,181 @@
-!!! warning "Important"
-
-    This fork is designed to be a drop in replacement/upgrade from `nzbdav-dev/nzbdav v0.6.4`.
-
-    Early adopters are reporting **2x network throughput** capability and a **400% reduction in seek time**.
-
-
-<p align="center">
-  <img width="1101" height="238" alt="NzbDav" src="https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4" />
-</p>
-
-<h1 align="center">NzbDav</h1>
-
-<p align="center">
-  <strong>Mount NZBs as a virtual filesystem and stream directly from Usenet — without downloading full media files first.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/nzbdav/nzbdav/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/nzbdav/nzbdav" /></a>
-  <a href="https://github.com/nzbdav/nzbdav/pkgs/container/nzbdav"><img alt="Docker image" src="https://img.shields.io/badge/ghcr.io-nzbdav%2Fnzbdav-blue?logo=docker&logoColor=white" /></a>
-  <a href="https://github.com/nzbdav/nzbdav/actions/workflows/ci.yml"><img alt="CI status" src="https://img.shields.io/github/actions/workflow/status/nzbdav/nzbdav/ci.yml?branch=main&label=CI" /></a>
-  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/nzbdav/nzbdav" /></a>
-</p>
-
+---
+title: NzbDav
+hide:
+  - navigation
+  - toc
 ---
 
-NzbDav is a **WebDAV server** that mounts NZB documents as a browsable virtual filesystem — without downloading full media files first. Content streams on demand, straight from your Usenet provider.
+<div class="nzbdav-hero" markdown>
 
-It also exposes a **SABnzbd-compatible API**, so Sonarr, Radarr, and similar tools can use it as a drop-in download client. Combined with Plex, Emby, or Jellyfin, this lets you build an effectively infinite media library without storing the full media library on your server.
+![NzbDav](https://github.com/user-attachments/assets/b14165f4-24ff-4abe-8af6-3ca852e781d4)
 
-## Why another fork?
+# NzbDav
 
-This project is a maintained fork of [nzbdav-dev/nzbdav](https://github.com/nzbdav-dev/nzbdav). We took ownership of the full Usenet streaming stack — nzbdav, UsenetSharp, RapidYencSharp, rapidyenc, and SharpCompress — so playback, connection, and decoding fixes could land in the right layer instead of waiting on a single upstream dependency chain.
+<p class="nzbdav-tagline" markdown>
+**Mount NZBs as a virtual filesystem and stream directly from Usenet** — without downloading full media files first.
+</p>
 
-Read the full story in the [release announcement](release-announcement.md).
+<div class="nzbdav-cta" markdown>
 
-## Special thanks
+[Get started](getting-started/index.md){ .md-button .md-button--primary }
+[View on GitHub](https://github.com/nzbdav/nzbdav){ .md-button }
+[Docker image](https://github.com/nzbdav/nzbdav/pkgs/container/nzbdav){ .md-button }
 
-Special thanks to the forks and contributors whose ideas we absorbed:
+</div>
 
-* [@Nzbdav-dev](https://github.com/Nzbdav-dev)
-* [@Pukabyte](https://github.com/Pukabyte)
-* [@elfhosted](https://github.com/elfhosted)
-* [@kha-kis](https://github.com/kha-kis)
-* [@mrghxst](https://github.com/mrghxst)
-* [qooode/nzbdavex](https://github.com/qooode/nzbdavex)
+<div class="nzbdav-badges" markdown>
 
-## Features
+[![Latest release](https://img.shields.io/github/v/release/nzbdav/nzbdav)](https://github.com/nzbdav/nzbdav/releases)
+[![Docker](https://img.shields.io/badge/ghcr.io-nzbdav%2Fnzbdav-0d9488?logo=docker&logoColor=white)](https://github.com/nzbdav/nzbdav/pkgs/container/nzbdav)
+[![CI](https://img.shields.io/github/actions/workflow/status/nzbdav/nzbdav/ci.yml?branch=main&label=CI)](https://github.com/nzbdav/nzbdav/actions)
+[![License](https://img.shields.io/github/license/nzbdav/nzbdav)](https://github.com/nzbdav/nzbdav/blob/main/LICENSE)
 
-* 📁 **WebDAV server**
-  Host your virtual filesystem over HTTP(S)
+</div>
 
-* ☁️ **Mount NZB documents**
-  Browse NZB contents instantly, no download needed
+</div>
 
-* 📽️ **Full streaming & seeking**
-  Jump to any point in your video streams
+NzbDav is a **WebDAV server** that mounts NZB documents as a browsable virtual filesystem. Content streams on demand from your Usenet provider. A **SABnzbd-compatible API** lets Sonarr, Radarr, and similar tools use it as a drop-in download client — so you can build an effectively infinite media library without storing full files on disk.
 
-* 🚀 **NNTP article pipelining**
-  Optional pipelined article fetches for higher throughput and faster seeks
+```mermaid
+flowchart LR
+  Arr[Sonarr_Radarr] -->|SAB_API| Queue[NzbDav_Queue]
+  Queue --> Mount[WebDAV_mount]
+  Mount --> Stream[Usenet_stream]
+  Player[Plex_Jellyfin_rclone] --> Mount
+```
 
-* 🗃️ **Archive streaming**
-  View, stream, and seek inside RAR and 7z archives
+## Why NzbDav
 
-* 🔓 **Password-protected archives**
-  Stream encrypted content transparently
+<div class="grid cards" markdown>
 
-* 🔀 **Multiple Usenet providers**
-  Automatic failover with per-provider circuit breakers
+-   :material-folder-network:{ .lg .middle } __Virtual filesystem__
 
-* 📊 **Live operations dashboard**
-  Throughput, latency, errors, active reads, provider usage, failover saves, and indexer activity
+    ---
 
-* 🧭 **Provider routing and limits**
-  Cascade priorities, per-provider data caps, usage resets, and connection benchmarking
+    Browse NZB contents instantly over WebDAV. No full download before you open a file.
 
-* 🔎 **Built-in indexer search**
-  Configure Newznab indexers, track API usage, search them manually, and mount results
+    [:octicons-arrow-right-24: WebDAV filesystem](features/webdav-filesystem.md)
 
-* 🚫 **Search exclude filters**
-  Manual regex excludes plus auto-synced remote lists (e.g. TRaSH) with refresh status
+-   :material-play-circle:{ .lg .middle } __Stream and seek__
 
-* 🎛️ **Search profiles and adapters**
-  Expose selected indexers through token-scoped Addon, Newznab, and JSON APIs
+    ---
 
-* 🐕 **Watchdog playback failover**
-  Verify candidates, retry failed releases, and inspect each playback attempt
+    Jump anywhere in a video. Optional NNTP pipelining for higher throughput and faster seeks.
 
-* 🛡️ **Warden dead-release ledger**
-  Remember unavailable releases, combine trusted remote ledgers, and import, export, or back up the data
+    [:octicons-arrow-right-24: Streaming](features/streaming-seeking.md)
 
-* 📡 **Watchtower proactive resolution**
-  Keep wanted movies and episodes mapped to verified releases before playback
+-   :material-download-network:{ .lg .middle } __*Arr compatible__
 
-* 📜 **Live log viewer**
-  Filter, follow, and download backend logs from the admin UI
+    ---
 
-* 🗂️ **WebDAV management**
-  Browse, download, and delete eligible virtual filesystem items from the UI
+    SABnzbd API surface for Sonarr and Radarr, with symlink or STRM import strategies.
 
-* 💙 **Health checks & optional repairs**
-  Monitor content health and trigger replacements through Radarr/Sonarr when configured
+    [:octicons-arrow-right-24: Infinite library](use-cases/infinite-library-arr.md)
 
-* 🧩 **SABnzbd-compatible API**
-  Drop-in replacement for SABnzbd
+-   :material-shield-check:{ .lg .middle } __Multi-provider__
 
-* 🙌 **Sonarr/Radarr integration**
-  Import through Rclone symlinks or lightweight STRM files
+    ---
+
+    Cascade routing, circuit breakers, data caps, and automatic failover across providers.
+
+    [:octicons-arrow-right-24: Multi-provider](features/multi-provider.md)
+
+</div>
 
 ## Quick start
 
-NzbDav ships as a single Docker image. To try it out:
+=== "Docker run"
 
-```bash
-docker run --rm -it -p 3000:3000 ghcr.io/nzbdav/nzbdav:latest
-```
+    ```bash
+    docker run --rm -it -p 3000:3000 ghcr.io/nzbdav/nzbdav:latest
+    ```
 
-This trial command is ephemeral: its settings are discarded when the container exits.
+    Ephemeral trial — settings are discarded when the container exits.
 
-For a persistent setup, use Docker Compose:
+=== "Docker Compose"
 
-```yaml
-services:
-  nzbdav:
-    image: ghcr.io/nzbdav/nzbdav:latest
-    container_name: nzbdav
-    restart: unless-stopped
-    ports:
-      - "3000:3000"
-    environment:
-      PUID: "1000"
-      PGID: "1000"
-      TZ: Etc/UTC
-    volumes:
-      - ./config:/config
-```
+    ```yaml
+    services:
+      nzbdav:
+        image: ghcr.io/nzbdav/nzbdav:latest
+        container_name: nzbdav
+        restart: unless-stopped
+        ports:
+          - "3000:3000"
+        environment:
+          PUID: "1000"
+          PGID: "1000"
+          TZ: Etc/UTC
+        volumes:
+          - ./config:/config
+    ```
 
-Then open `http://localhost:3000`, create your admin account, and head to the **Settings** page to configure your Usenet provider:
+Then open `http://localhost:3000`, create your admin account, and configure a Usenet provider under **Settings**.
 
-!!! warning "Important"
+!!! warning "Expose carefully"
 
-    Port `3000` serves plain HTTP. If NzbDav will be reachable outside your trusted network, put it behind an HTTPS reverse proxy and do not expose the container port directly to the internet. WebDAV uses Basic authentication, so TLS is essential for remote access. When the proxy runs on the Docker host, bind the port to localhost with `127.0.0.1:3000:3000`.
+    Port `3000` is plain HTTP. Put NzbDav behind HTTPS for remote access. WebDAV uses Basic auth, so TLS matters. Prefer binding `127.0.0.1:3000:3000` when a reverse proxy runs on the host.
 
-    Live Overview/Queue updates use a same-origin WebSocket at `/ws`. Ensure your reverse proxy allows HTTP Upgrade on that path (see [setup guide](setup-guide.md)).
-
-
-You'll also want to set a username and password for the WebDAV server itself.
+[Full Docker guide](getting-started/docker.md){ .md-button .md-button--primary }
+[First-run checklist](getting-started/first-run.md){ .md-button }
 
 ## Documentation
 
-The [0.7.x release announcement](release-announcement.md) summarizes the coordinated stack releases (nzbdav, UsenetSharp, RapidYencSharp, rapidyenc), .NET 10 migration, network performance work, and our audit of upstream issues and PRs.
+<div class="grid cards" markdown>
 
-The [comprehensive setup guide](setup-guide.md) covers everything needed for a full production deployment:
+-   :material-rocket-launch:{ .lg .middle } __Getting started__
 
-* **Docker Compose** — persistent deployment, container health checks, and updates
-* **Import strategies** — Rclone symlinks for Plex or STRM files for Emby/Jellyfin
-* **Performance tuning** — benchmarking WebDAV connection limits
-* **Integrations** — automating Radarr/Sonarr queue management and repairs
-* **Stremio** — streaming Usenet on demand via AIOStreams
-* **Search profiles** — token-scoped Newznab, Addon, and JSON adapter setup
-* **Watchtower** — proactive wanted-list resolution and readiness controls in the [Watchtower guide](watchtower.md)
+    ---
 
-## Development
+    Install with Docker, complete first-run setup, connect Radarr and Sonarr.
 
-The project consists of a .NET backend (WebDAV, Usenet streaming, SAB API) and a React Router frontend (admin UI). See [CONTRIBUTING.md](contributing.md) for local development setup and [CHANGELOG.md](https://github.com/nzbdav/nzbdav/blob/main/CHANGELOG.md) for release history.
+    [:octicons-arrow-right-24: Start here](getting-started/index.md)
+
+-   :material-book-open-page-variant:{ .lg .middle } __Guides__
+
+    ---
+
+    Architecture, import strategies, rclone mounts, media servers, Stremio, troubleshooting.
+
+    [:octicons-arrow-right-24: Browse guides](guides/architecture.md)
+
+-   :material-cog:{ .lg .middle } __Configuration__
+
+    ---
+
+    What every Settings control does, plus the headless environment-variable schema.
+
+    [:octicons-arrow-right-24: Settings reference](configuration/index.md)
+
+-   :material-lightbulb:{ .lg .middle } __Use cases__
+
+    ---
+
+    Infinite library with *Arr, streaming-only setups, multi-provider failover.
+
+    [:octicons-arrow-right-24: Use cases](use-cases/index.md)
+
+</div>
+
+## Track progress on GitHub
+
+NzbDav is developed in the open. Use GitHub to follow releases, file issues, and review pull requests.
+
+[Repository](https://github.com/nzbdav/nzbdav){ .md-button .md-button--primary }
+[Releases](https://github.com/nzbdav/nzbdav/releases){ .md-button }
+[Issues](https://github.com/nzbdav/nzbdav/issues){ .md-button }
+[Community hub](community/github.md){ .md-button }
+
+## Ecosystem
+
+NzbDav owns the streaming stack end to end. Complementary managed libraries — **UsenetSharp**, **RapidYencSharp**, **rapidyenc**, and **SharpCompress** — land connection, decode, and archive fixes in the right layer so playback improvements ship with the product.
+
+[About the project](community/about.md){ .md-button }
 
 ## License
 
 NzbDav is released under the [MIT License](https://github.com/nzbdav/nzbdav/blob/main/LICENSE).
 
-!!! note "Note"
+!!! note "Intended use"
 
-    NzbDav is intended for use with legally obtained content only. The project maintainers do not condone piracy and will not provide support for users suspected of engaging in copyright infringement.
-
+    NzbDav is intended for use with legally obtained content only. The maintainers do not condone piracy and will not support copyright infringement.

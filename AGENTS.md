@@ -427,6 +427,6 @@ else
 - [README.md](README.md) — product overview
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev environment setup
 - [docs/](docs/) — Zensical documentation sources (`pip install -r docs-requirements.txt && zensical serve`)
-- [https://nzbdav.github.io/nzbdav/](https://nzbdav.github.io/nzbdav/) — published documentation
+- [https://nzbdav.com/](https://nzbdav.com/) — published documentation
 - [CHANGELOG.md](CHANGELOG.md) — what shipped in each version
 - [.cursor/skills/design-language/SKILL.md](.cursor/skills/design-language/SKILL.md) — frontend design language / styling guidelines
