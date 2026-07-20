@@ -1,0 +1,65 @@
+# Community
+
+Chat with other operators, track development, and contribute.
+
+<div class="grid cards" markdown>
+
+-   :fontawesome-brands-discord:{ .lg .middle } __Discord__
+
+    ---
+
+    Join **`#nzbdav`** for setup help, streaming tips, and informal discussion.
+
+    [:octicons-arrow-right-24: discord.gg/EJaptcg9UY](https://discord.gg/EJaptcg9UY)
+
+-   :fontawesome-brands-github:{ .lg .middle } __Repository__
+
+    ---
+
+    Source, stars, forks, and open pull requests.
+
+    [:octicons-arrow-right-24: github.com/nzbdav/nzbdav](https://github.com/nzbdav/nzbdav)
+
+-   :material-tag:{ .lg .middle } __Releases__
+
+    ---
+
+    Version tags, Docker image notes, upgrade highlights.
+
+    [:octicons-arrow-right-24: Releases](https://github.com/nzbdav/nzbdav/releases)
+
+-   :material-bug:{ .lg .middle } __Issues__
+
+    ---
+
+    Bugs, feature requests, and triage. Prefer GitHub Issue Types over legacy kind labels.
+
+    [:octicons-arrow-right-24: Issues](https://github.com/nzbdav/nzbdav/issues)
+
+-   :material-docker:{ .lg .middle } __Container image__
+
+    ---
+
+    `ghcr.io/nzbdav/nzbdav` multi-arch packages.
+
+    [:octicons-arrow-right-24: GHCR](https://github.com/nzbdav/nzbdav/pkgs/container/nzbdav)
+
+-   :material-check-network:{ .lg .middle } __CI__
+
+    ---
+
+    Frontend and backend checks on every PR.
+
+    [:octicons-arrow-right-24: Actions](https://github.com/nzbdav/nzbdav/actions)
+
+-   :material-text-box:{ .lg .middle } __Changelog__
+
+    ---
+
+    Generated release notes from conventional commits.
+
+    [:octicons-arrow-right-24: CHANGELOG](https://github.com/nzbdav/nzbdav/blob/main/CHANGELOG.md)
+
+</div>
+
+Prefer **Issues** for bugs and feature requests that need tracking; use **Discord** for quicker chat. The site header also shows live GitHub stars / forks / latest release when available.

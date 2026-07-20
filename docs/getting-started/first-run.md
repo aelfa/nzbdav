@@ -1,0 +1,55 @@
+# First run
+
+Open `http://your-server:3000` after the container is healthy.
+
+## 1. Create the admin account
+
+Set username and password for the web UI. Session cookies can be hardened later with `SECURE_COOKIES=true` behind HTTPS.
+
+## 2. Usenet (`Settings` → `Usenet`)
+
+| Setting | Guidance |
+|---------|----------|
+| Host / Port | Provider NNTP endpoint (often `563` with SSL) |
+| Username / Password | Provider credentials |
+| Max Connections | At or below your plan allowance |
+| Type | **Pool Connections** for primary accounts |
+| Use SSL | On for remote providers |
+| Storage group | Optional — same label for resellers that share upstream storage |
+
+Click **Test** / **Auto-tune** when available. See [Usenet settings](../configuration/usenet.md).
+
+## 3. WebDAV (`Settings` → `WebDAV`)
+
+| Setting | Guidance |
+|---------|----------|
+| WebDAV User | Dedicated username (default `admin`) |
+| WebDAV Password | Required for rclone, AIOStreams, and many players |
+| Enforce Read-Only | Leave on unless you need deletes from clients |
+
+Playback tuning (connections, pipelining, segment cache) lives on the same tab — see [WebDAV settings](../configuration/webdav.md).
+
+## 4. Import strategy (`Settings` → `SABnzbd`)
+
+| Strategy | Best for | What to set |
+|----------|----------|-------------|
+| **Symlinks — Plex** | Plex / real filesystem entries | **Rclone Mount Directory** (e.g. `/mnt/remote/nzbdav`) + [rclone sidecar](../guides/mounting-webdav.md) |
+| **STRM Files — Emby/Jellyfin** | Emby/Jellyfin `.strm` playback | **Completed Downloads Dir** + **Base URL** reachable by the media server |
+
+Copy the **API Key** from this page — *Arr download clients need it.
+
+## 5. Smoke test
+
+1. Upload a small `.nzb` on the **Queue** page (or send one from an indexer).
+2. Wait until it reaches history / mounts under Explore → `content`.
+3. Open or download a video file to confirm streaming.
+
+!!! tip "Active Reads"
+
+    Overview **Active Reads** lists any WebDAV byte fetch. Sustained bandwidth with nobody watching often means rclone VFS thrash or media-server analysis.
+
+## Next
+
+- [Connect Radarr/Sonarr](connect-arr.md)
+- [Import strategies](../guides/import-strategies.md)
+- [Configuration reference](../configuration/index.md)

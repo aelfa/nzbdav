@@ -1,0 +1,27 @@
+# Maintenance
+
+Database housekeeping, scheduled orphan cleanup, and one-off tools.
+
+## Settings
+
+| Control | Config key | Default | Effect |
+|---------|------------|---------|--------|
+| Vacuum on startup | `db.is-startup-vacuum-enabled` | off | Reclaim SQLite space; may slow start |
+| SAB history retention (days) | `database.history-retention-days` | `90` | Does not delete WebDAV; `0` = keep all |
+| Health-check retention (days) | `database.healthcheck-retention-days` | `30` | `0` = keep all |
+| Enable daily orphan cleanup | `maintenance.remove-orphaned-schedule-enabled` | off | Remove Orphaned Files schedule |
+| Daily run time | `maintenance.remove-orphaned-schedule-time` | midnight | Uses container `TZ` |
+
+## Tasks (actions)
+
+| Task | Purpose | Caution |
+|------|---------|---------|
+| Remove Orphaned Files | Drop WebDAV files not linked from library | Permanent; dry run available |
+| Rename Windows-Invalid Paths | Sanitize existing names | Needs Windows-safe paths; backup + dry run |
+| Convert STRM → Symlinks | Strategy migration | Needs library dir + rclone mount |
+| Recreate STRM Files | Refresh sidecars | Needs STRM strategy + completed dir + base URL |
+| Migrate blobs to blobstore | Background optimization | Usually automatic |
+| Reset Health-Check Statistics | Clear HC history | Cannot undo |
+| Reset Overview Statistics | Clear overview metrics | Cannot undo |
+
+[Retention](../operations/retention-cleanup.md) · [Deletion audit](../operations/deletion-audit.md)

@@ -1,10 +1,10 @@
 # AGENTS.md
 
-Quick-start guide for AI agents working on **NzbDav**.
+Quick-start guide for AI agents working on **NzbDAV**.
 
 ## What this project is
 
-NzbDav is a **WebDAV server** that mounts NZB documents as a virtual filesystem and streams content directly from Usenet providers — without downloading files to disk first. It exposes a **SABnzbd-compatible API** so Sonarr, Radarr, and similar tools can use it as a drop-in download client.
+NzbDAV is a **WebDAV server** that mounts NZB documents as a virtual filesystem and streams content directly from Usenet providers — without downloading files to disk first. It exposes a **SABnzbd-compatible API** so Sonarr, Radarr, and similar tools can use it as a drop-in download client.
 
 The shipped product is a **single Docker image** that runs two processes:
 
@@ -113,7 +113,7 @@ Performance benchmarks live in `backend.Benchmarks/` and are run manually with
 
 ## UsenetSharp / SharpCompress integration
 
-NzbDav consumes the public `NzbDav.UsenetSharp` and `NzbDav.SharpCompress` packages from NuGet.org.
+NzbDAV consumes the public `NzbDav.UsenetSharp` and `NzbDav.SharpCompress` packages from NuGet.org.
 
 - Publish and verify the package before bumping `backend/NzbWebDAV.csproj`. A release tag can exist without a package if the publish workflow fails before its pack/push steps.
 - Repository CI restores anonymously from NuGet.org and is the authoritative package-consumption check.
@@ -427,6 +427,6 @@ else
 - [README.md](README.md) — product overview
 - [CONTRIBUTING.md](CONTRIBUTING.md) — dev environment setup
 - [docs/](docs/) — Zensical documentation sources (`pip install -r docs-requirements.txt && zensical serve`)
-- [https://nzbdav.github.io/nzbdav/](https://nzbdav.github.io/nzbdav/) — published documentation
+- [https://nzbdav.com/](https://nzbdav.com/) — published documentation
 - [CHANGELOG.md](CHANGELOG.md) — what shipped in each version
 - [.cursor/skills/design-language/SKILL.md](.cursor/skills/design-language/SKILL.md) — frontend design language / styling guidelines
