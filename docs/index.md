@@ -176,6 +176,6 @@ NzbDav owns the streaming stack end to end. Complementary managed libraries — 
 
 NzbDav is released under the [MIT License](https://github.com/nzbdav/nzbdav/blob/main/LICENSE).
 
-!!! note "Intended use"
+!!! warning "Disclaimer"
 
-    NzbDav is intended for use with legally obtained content only. The maintainers do not condone piracy and will not support copyright infringement.
+    NzbDav is intended for use with **legally obtained or public domain** content only. The maintainers do not condone piracy and will not provide support for copyright infringement.
