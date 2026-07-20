@@ -2,6 +2,10 @@
 
 NzbDAV ships as a single multi-arch image: `ghcr.io/nzbdav/nzbdav`. The container runs the frontend (public port `3000`) and backend (internal `8080`).
 
+!!! tip "Hosted with DUMB"
+
+    Prefer a batteries-included Arr stack? NzbDAV is a **fully supported core module** in [Debrid Unlimited Media Bridge (DUMB)](https://dumbarr.com/) — see the [NzbDAV service guide](https://dumbarr.com/services/core/nzbdav/) and [setup options](index.md#setup-and-hosting-options).
+
 !!! tip "IPv6-only hosts"
 
     `ghcr.io` is not reachable over IPv6. Use the Docker Hub mirror `nzbdav/nzbdav` instead.

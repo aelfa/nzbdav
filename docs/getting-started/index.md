@@ -52,6 +52,15 @@ Choose a path based on where you are:
 2. **Indexers** (optional for first play) — Newznab-compatible sources for search and *Arr.
 3. **Docker** — Engine + Compose v2. Symlink imports also need Linux FUSE (`/dev/fuse`).
 
+## Setup and hosting options
+
+| Option | Who it’s for | Start here |
+|--------|----------------|------------|
+| **Self-hosted Docker** | You run Compose (or Unraid/etc.) and wire *Arr / rclone yourself | [Docker](docker.md) |
+| **[DUMB](https://dumbarr.com/)** (Debrid Unlimited Media Bridge) | You want NzbDAV as a **fully supported core module** with guided onboarding and Arr wiring | [NzbDAV on dumbarr.com](https://dumbarr.com/services/core/nzbdav/) |
+
+DUMB treats NzbDAV as a first-class Usenet WebDAV / SABnzbd-compatible workflow service (`core_service: nzbdav`), including automatic Arr download-client and symlink-path integration when you select it during onboarding. Prefer DUMB’s own docs for stack-specific paths and ports; use this site for NzbDAV Settings, features, and troubleshooting.
+
 ## After install
 
 | Goal | Next |

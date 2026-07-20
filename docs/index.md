@@ -126,7 +126,14 @@ Choosing between streaming WebDAV tools and classic download clients depends on 
           - ./config:/config
     ```
 
-Then open `http://localhost:3000`, create your admin account, and configure a Usenet provider under **Settings**.
+=== "DUMB stack"
+
+    NzbDAV is a **fully supported core module** in [Debrid Unlimited Media Bridge (DUMB)](https://dumbarr.com/). Enable NzbDAV during DUMB onboarding (or set Arr `core_service` to include `nzbdav`) for guided Usenet WebDAV + download-client wiring.
+
+    [NzbDAV on dumbarr.com](https://dumbarr.com/services/core/nzbdav/){ .md-button .md-button--primary }
+    [Hosting options](getting-started/index.md#setup-and-hosting-options){ .md-button }
+
+Then open `http://localhost:3000` (self-hosted) or your DUMB service URL, create your admin account if needed, and configure a Usenet provider under **Settings**.
 
 !!! warning "Expose carefully"
 
