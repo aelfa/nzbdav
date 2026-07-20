@@ -49,83 +49,83 @@ Special thanks to the forks and contributors whose ideas we absorbed:
 
 * 📁 **WebDAV server**
   
-  Host your virtual filesystem over HTTP(S)
+  - _Host your virtual filesystem over HTTP(S)_
 
 * ☁️ **Mount NZB documents**
   
-  Browse NZB contents instantly, no download needed
+  - _Browse NZB contents instantly, no download needed_
 
 * 📽️ **Full streaming & seeking**
   
-  Jump to any point in your video streams
+  - _Jump to any point in your video streams_
 
 * 🚀 **NNTP article pipelining**
   
-  Optional pipelined article fetches for higher throughput and faster seeks
+  - _Optional pipelined article fetches for higher throughput and faster seeks_
 
 * 🗃️ **Archive streaming**
   
-  View, stream, and seek inside RAR and 7z archives
+  - _View, stream, and seek inside RAR and 7z archives_
 
 * 🔓 **Password-protected archives**
   
-  Stream encrypted content transparently
+  - _Stream encrypted content transparently_
 
 * 🔀 **Multiple Usenet providers**
   
-  Automatic failover with per-provider circuit breakers
+  - _Automatic failover with per-provider circuit breakers_
 
 * 📊 **Live operations dashboard**
   
-  Throughput, latency, errors, active reads, provider usage, failover saves, and indexer activity
+  - _Throughput, latency, errors, active reads, provider usage, failover saves, and indexer activity_
 
 * 🧭 **Provider routing and limits**
   
-  Cascade priorities, per-provider data caps, usage resets, and connection benchmarking
+  - _Cascade priorities, per-provider data caps, usage resets, and connection benchmarking_
 
 * 🔎 **Built-in indexer search**
   
-  Configure Newznab indexers, track API usage, search them manually, and mount results
+  - _Configure Newznab indexers, track API usage, search them manually, and mount results_
 
 * 🚫 **Search exclude filters**
   
-  Manual regex excludes plus auto-synced remote lists (e.g. TRaSH) with refresh status
+  - _Manual regex excludes plus auto-synced remote lists (e.g. TRaSH) with refresh status_
 
 * 🎛️ **Search profiles and adapters**
   
-  Expose selected indexers through token-scoped Addon, Newznab, and JSON APIs
+  - _Expose selected indexers through token-scoped Addon, Newznab, and JSON APIs_
 
 * 🐕 **Watchdog playback failover**
   
-  Verify candidates, retry failed releases, and inspect each playback attempt
+  - _Verify candidates, retry failed releases, and inspect each playback attempt_
 
 * 🛡️ **Warden dead-release ledger**
   
-  Remember unavailable releases, combine trusted remote ledgers, and import, export, or back up the data
+  - _Remember unavailable releases, combine trusted remote ledgers, and import, export, or back up the data_
 
 * 📡 **Watchtower proactive resolution**
   
-  Keep wanted movies and episodes mapped to verified releases before playback
+  - _Keep wanted movies and episodes mapped to verified releases before playback_
 
 * 📜 **Live log viewer**
   
-  Filter, follow, and download backend logs from the admin UI
+  - _Filter, follow, and download backend logs from the admin UI_
 
 * 🗂️ **WebDAV management**
   
-  Browse, download, and delete eligible virtual filesystem items from the UI
+  - _Browse, download, and delete eligible virtual filesystem items from the UI_
 
 * 💙 **Health checks & optional repairs**
   
-  Monitor content health and trigger replacements through Radarr/Sonarr when configured
+  - _Monitor content health and trigger replacements through Radarr/Sonarr when configured_
 
 * 🧩 **SABnzbd-compatible API**
   
-  Drop-in replacement for SABnzbd
+  - _Drop-in replacement for SABnzbd_
 
 * 🙌 **Sonarr/Radarr integration**
   
-  Import through Rclone symlinks or lightweight STRM files
+  - _Import through Rclone symlinks or lightweight STRM files_
 
 ## Quick start
 
