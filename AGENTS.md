@@ -285,11 +285,39 @@ Use **GitHub Issue Types** for kind — not kind labels:
 
 - Do **not** use (or recreate) `bug` / `enhancement` labels — they were removed; Issue Type is the source of truth.
 - Do **not** put `[Bug]:` / `[Feature]:` in issue titles; the type field already conveys that.
-- Use Issue custom fields for triage severity and complexity — **not** labels:
-  - **Priority**: `Urgent` / `High` / `Medium` / `Low` (former `priority:P0`–`P3`)
-  - **Effort**: `High` / `Medium` / `Low` (former `effort:L` / `M` / `S`)
-- Do **not** recreate `priority:*` or `effort:*` labels.
-- Other triage / meta labels are fine: `performance`, `cataloged`, `more-info-required`, and source tags (`upstream-audit`, `elfhosted`, etc.).
+
+Triage and release metadata live on the **[NZBDav Ecosystem](https://github.com/orgs/nzbdav/projects/1)** project and on GitHub **milestones**. Prefer those over org Issue Fields, labels, or duplicate project columns.
+
+### Priority and Effort (project fields)
+
+Set `Priority` and `Effort` on the project item (not org Issue Fields, not labels). Do **not** use the unused project **Size** or **Release Window** fields for this — Effort uses the Size-style scale; milestones track releases.
+
+| Priority | When to use |
+|----------|-------------|
+| `Urgent` | Production-breaking now (crash, data loss, security) |
+| `High` | Core streaming / queue / SAB / *Arr reliability used by many |
+| `Medium` | Real ops/UX value; workaround or narrower audience OK |
+| `Low` | Polish, niche, or conflicts with stream-first identity |
+
+| Effort | Rough size |
+|--------|------------|
+| `XS` | Hours / trivial |
+| `S` | Roughly ≤1–2 days |
+| `M` | Roughly a few days to ~1 week |
+| `L` | Multi-week |
+| `XL` | Multi-week+ and/or UsenetSharp / SharpCompress / library work |
+
+### Status (project field)
+
+Closing a GitHub issue does **not** move the project item. When an issue is finished (fixed or closed as not planned / skipped), set project **Status** to **Done**. Open work stays in `Backlog` / `Ready` / `In progress` / `In review` as appropriate.
+
+### Milestones (release bucketing)
+
+Assign closed issues to a version milestone (`0.7`, `0.8`, `0.9`, …) for the release line they belong to — both `COMPLETED` and `NOT_PLANNED` (skipped) closes. Prefer milestones over the project Release Window field.
+
+### Labels
+
+Do **not** recreate `priority:*` or `effort:*` labels. Meta labels are fine: `performance`, `cataloged`, `more-info-required`, `next-major`, `library`, and source tags (`upstream-audit`, `elfhosted`, etc.).
 
 Bug and feature issue templates set Issue Type only (no kind labels, no title prefix).
 
