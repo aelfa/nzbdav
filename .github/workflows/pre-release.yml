@@ -32,12 +32,15 @@ jobs:
       - build
       - tag-dev
     runs-on: ubuntu-latest
-    permissions: {}
+    permissions:
+      contents: read
     steps:
       - name: Post :dev refresh to Discord
         env:
           DISCORD_DEVELOPMENT_WEBHOOK_URL: ${{ secrets.DISCORD_DEVELOPMENT_WEBHOOK_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SHA: ${{ github.sha }}
+          PREVIOUS_SHA: ${{ needs.tag-dev.outputs.previous_sha }}
           REPO: ${{ github.repository }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -49,6 +52,20 @@ jobs:
 
           SHORT_SHA="${SHA:0:7}"
           ANNOUNCEMENT_BODY=$(printf '**Dev image refreshed**\n`ghcr.io/%s:dev` and git tag `dev` now point to `%s`.\nRun: %s' "${REPO}" "${SHORT_SHA}" "${RUN_URL}")
+
+          if [ -n "${PREVIOUS_SHA}" ] && [ "${PREVIOUS_SHA}" != "${SHA}" ]; then
+            CHANGELOG=$(gh api "repos/${REPO}/compare/${PREVIOUS_SHA}...${SHA}" \
+              --jq '.commits[] | "• " + (.commit.message | split("\n")[0]) + " (" + (.sha[0:7]) + ")"')
+            if [ -n "${CHANGELOG}" ]; then
+              ANNOUNCEMENT_BODY=$(printf '%s\n\n**Changes since previous :dev:**\n%s' "${ANNOUNCEMENT_BODY}" "${CHANGELOG}")
+            fi
+          fi
+
+          MAX_LEN=1900
+          if [ "${#ANNOUNCEMENT_BODY}" -gt "${MAX_LEN}" ]; then
+            ANNOUNCEMENT_BODY="${ANNOUNCEMENT_BODY:0:$((MAX_LEN - 3))}..."
+          fi
+
           ESCAPED_BODY=$(printf '%s' "$ANNOUNCEMENT_BODY" | jq -Rsa .)
           curl --fail-with-body -sS -H "Content-Type: application/json" \
             -d "{\"content\": ${ESCAPED_BODY}, \"flags\": 4}" \

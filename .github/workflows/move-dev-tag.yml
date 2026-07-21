@@ -7,21 +7,34 @@ on:
         description: Commit SHA or git ref to point the movable dev tag at
         required: true
         type: string
+    outputs:
+      previous_sha:
+        description: SHA the movable dev tag pointed at before this move (empty if the tag did not exist)
+        value: ${{ jobs.tag-dev.outputs.previous_sha }}
+      sha:
+        description: SHA the movable dev tag now points at
+        value: ${{ jobs.tag-dev.outputs.sha }}
 
 jobs:
   tag-dev:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      previous_sha: ${{ steps.move.outputs.previous_sha }}
+      sha: ${{ steps.move.outputs.sha }}
     steps:
       - name: Recreate dev tag
+        id: move
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REF: ${{ inputs.ref }}
         run: |
           set -euo pipefail
           SHA=$(gh api "repos/${{ github.repository }}/commits/${REF}" --jq .sha)
-          if gh api "repos/${{ github.repository }}/git/ref/tags/dev" >/dev/null 2>&1; then
+          PREVIOUS_SHA=""
+          if PREV_JSON=$(gh api "repos/${{ github.repository }}/git/ref/tags/dev" 2>/dev/null); then
+            PREVIOUS_SHA=$(printf '%s' "$PREV_JSON" | jq -r .object.sha)
             gh api --method PATCH "repos/${{ github.repository }}/git/refs/tags/dev" \
               -f sha="$SHA" \
               -F force=true
@@ -30,4 +43,6 @@ jobs:
               -f ref="refs/tags/dev" \
               -f sha="$SHA"
           fi
-          echo "Moved refs/tags/dev -> $SHA (from ${REF})"
+          echo "previous_sha=${PREVIOUS_SHA}" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "Moved refs/tags/dev -> $SHA (from ${REF}; previous=${PREVIOUS_SHA:-none})"
