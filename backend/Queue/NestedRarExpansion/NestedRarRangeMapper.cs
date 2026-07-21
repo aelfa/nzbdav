@@ -18,7 +18,8 @@ public static class NestedRarRangeMapper
         RarProcessor.PartNumber partNumber,
         AesParams? aesParams,
         long fileUncompressedSize,
-        DateTimeOffset releaseDate)
+        DateTimeOffset releaseDate,
+        bool isUncompressedSizeUnknown = false)
     {
         if (sortedOuterSegments.Length == 0)
             return [];
@@ -73,6 +74,7 @@ public static class NestedRarRangeMapper
                     partCount),
                 AesParams = aesParams,
                 FileUncompressedSize = fileUncompressedSize,
+                IsUncompressedSizeUnknown = isUncompressedSizeUnknown,
             });
         }
 

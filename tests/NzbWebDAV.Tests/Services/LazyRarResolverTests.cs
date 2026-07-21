@@ -3,14 +3,17 @@ using System.Text;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Clients.Usenet.Models;
 using NzbWebDAV.Config;
+using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
 using NzbWebDAV.Models;
 using NzbWebDAV.Services;
+using NzbWebDAV.Tests.Database;
 using NzbWebDAV.Utils;
 using UsenetSharp.Models;
 
 namespace NzbWebDAV.Tests.Services;
 
+[Collection(nameof(ConfigPathCollection))]
 public class LazyRarResolverTests
 {
     [Fact]
@@ -86,6 +89,82 @@ public class LazyRarResolverTests
         Assert.Equal(resolved.FilePartByteRange.StartInclusive + packedSize,
             resolved.SegmentIdByteRange.Count);
         Assert.Equal(0, client.MeasuredSizeRequests);
+    }
+
+    [Fact]
+    public async Task EnsureResolvedThroughAsync_ReconcilesFileSizeAfterBlobPersist()
+    {
+        const string pathInArchive = "movie.mkv";
+        const int packedSize = 1000;
+        var volumeBytes = BuildRar4ContinuationVolume(pathInArchive, packedSize);
+        const string segmentId = "vol2-seg0";
+        var client = new MeasuringNntpClient(segmentId, volumeBytes.Length);
+        Guid? reconciledBlobId = null;
+        long? reconciledSize = null;
+        var reconcileSawPersistedBlob = false;
+
+        var previous = Environment.GetEnvironmentVariable("CONFIG_PATH");
+        var configRoot = Path.Combine(Path.GetTempPath(), $"nzbdav-lazy-reconcile-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(configRoot);
+        Environment.SetEnvironmentVariable("CONFIG_PATH", configRoot);
+        try
+        {
+            var mpf = new DavMultipartFile
+            {
+                Id = Guid.NewGuid(),
+                Metadata = new DavMultipartFile.Meta
+                {
+                    IsLazy = true,
+                    PathInArchive = pathInArchive,
+                    FileParts =
+                    [
+                        new DavMultipartFile.FilePart
+                        {
+                            SegmentIds = ["vol1-seg0"],
+                            SegmentIdByteRange = LongRange.FromStartAndSize(0, 100),
+                            FilePartByteRange = LongRange.FromStartAndSize(10, 90),
+                        }
+                    ],
+                    PendingParts =
+                    [
+                        new DavMultipartFile.PendingPart
+                        {
+                            SegmentIds = [segmentId],
+                            SegmentIdByteRange = LongRange.FromStartAndSize(0, volumeBytes.Length),
+                            EstimatedDataSize = packedSize,
+                        }
+                    ],
+                }
+            };
+
+            var resolver = new LazyRarResolver(client, new ConfigManager())
+            {
+                VolumeStreamFactory = (_, size) => new BoundedLengthStream(volumeBytes, size),
+                ReconcileFileSizeAsync = (blobId, meta, _) =>
+                {
+                    reconcileSawPersistedBlob =
+                        BlobStore.ReadBlob<DavMultipartFile>(blobId) is not null;
+                    reconciledBlobId = blobId;
+                    reconciledSize = MultipartFileSizeReconciler.TryGetPublishedSize(meta);
+                    return Task.CompletedTask;
+                },
+            };
+
+            var meta = await resolver.EnsureResolvedThroughAsync(mpf, long.MaxValue, CancellationToken.None);
+            Assert.False(meta.IsLazy);
+
+            for (var i = 0; i < 100 && reconciledSize is null; i++)
+                await Task.Delay(20);
+
+            Assert.True(reconcileSawPersistedBlob);
+            Assert.Equal(mpf.Id, reconciledBlobId);
+            Assert.Equal(90 + packedSize, reconciledSize);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("CONFIG_PATH", previous);
+            try { Directory.Delete(configRoot, recursive: true); } catch { /* best effort */ }
+        }
     }
 
     // Minimal RAR4 multi-volume continuation: mark + archive(VOLUME) +

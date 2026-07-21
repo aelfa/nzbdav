@@ -40,6 +40,7 @@ public class RarProcessor(
                     ),
                     AesParams = x.GetAesParams(password),
                     FileUncompressedSize = x.UncompressedSize,
+                    IsUncompressedSizeUnknown = x.IsUncompressedSizeUnknown,
                     ReleaseDate = fileInfo.ReleaseDate,
                 }).ToArray(),
         };
@@ -124,6 +125,8 @@ public class RarProcessor(
         public required AesParams? AesParams { get; init; }
 
         public required long FileUncompressedSize { get; init; }
+
+        public bool IsUncompressedSizeUnknown { get; init; }
     }
 
     public record PartNumber

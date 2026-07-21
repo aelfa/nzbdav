@@ -231,6 +231,7 @@ class Program
                 .AddHostedService<WatchdogPurgeService>()
                 .AddHostedService<DavCleanupService>()
                 .AddHostedService<UsenetFileToBlobstoreMigrationService>()
+                .AddHostedService<MultipartFileSizeRepairService>()
                 .AddHostedService<RemoveOrphanedFilesSchedulerService>()
                 .AddHostedService<ActiveReadsBroadcaster>()
                 .AddSingleton<WatchtowerStore>()
