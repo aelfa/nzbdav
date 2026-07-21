@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using NzbWebDAV.Database;
 using NzbWebDAV.Database.Models;
+using NzbWebDAV.Exceptions;
 using NzbWebDAV.Extensions;
 using NzbWebDAV.Models;
 using NzbWebDAV.Queue.FileProcessors;
@@ -91,8 +92,7 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
             // Initialize dav-item fields
             var pathWithinArchive = archiveFile.Key;
             var fileParts = SortByPartNumber(archiveFile.Value);
-            var aesParams = fileParts.Select(x => x.AesParams).FirstOrDefault(x => x != null);
-            var fileSize = aesParams?.DecodedSize ?? fileParts.Sum(x => x.ByteRangeWithinPart.Count);
+            var (fileSize, aesParams) = ResolvePublishedSizeAndAes(fileParts);
             var parentDirectory = EnsureParentDirectory(pathWithinArchive);
             var name = SanitizeDavName(Path.GetFileName(pathWithinArchive));
 
@@ -259,13 +259,78 @@ public class RarAggregator(DavDatabaseClient dbClient, DavItem mountDirectory, b
     internal static void ValidateVolumes(List<RarProcessor.StoredFileSegment> storedFileSegments)
     {
         if (storedFileSegments.Count == 0) return;
-        var distinctUncompressedSizes = storedFileSegments.Select(x => x.FileUncompressedSize).Distinct().ToList();
-        if (distinctUncompressedSizes.Count != 1)
+
+        var knownSizes = storedFileSegments
+            .Where(x => !x.IsUncompressedSizeUnknown)
+            .Select(x => x.FileUncompressedSize)
+            .Distinct()
+            .ToList();
+
+        if (knownSizes.Count > 1)
             throw new InvalidDataException("Inconsistent rar file size detected.");
-        var expected = distinctUncompressedSizes[0];
+
         var actual = storedFileSegments.Sum(x => x.ByteRangeWithinPart.Count);
-        if (Math.Abs(actual - expected) > 16)
-            throw new InvalidDataException("Missing rar volumes detected.");
+        if (knownSizes.Count == 1)
+        {
+            var expected = knownSizes[0];
+            if (Math.Abs(actual - expected) > 16)
+                throw new InvalidDataException("Missing rar volumes detected.");
+            return;
+        }
+
+        // All declarations unknown: stored unencrypted can use packed sum; encrypted cannot.
+        var isEncrypted = storedFileSegments.Any(x => x.AesParams is not null);
+        if (isEncrypted)
+        {
+            throw new UnsupportedRarUnknownSizeException(
+                "Encrypted RAR with unknown uncompressed size is not supported.");
+        }
+    }
+
+    internal static long ResolvePublishedFileSize(IReadOnlyList<RarProcessor.StoredFileSegment> fileParts)
+        => ResolvePublishedSizeAndAes(fileParts).FileSize;
+
+    internal static (long FileSize, AesParams? AesParams) ResolvePublishedSizeAndAes(
+        IReadOnlyList<RarProcessor.StoredFileSegment> fileParts)
+    {
+        if (fileParts.Count == 0)
+            throw new InvalidDataException("RAR archive has no file parts.");
+
+        var packedSum = fileParts.Sum(x => x.ByteRangeWithinPart.Count);
+        var knownSizes = fileParts
+            .Where(x => !x.IsUncompressedSizeUnknown
+                        && x.FileUncompressedSize > 0
+                        && x.FileUncompressedSize != long.MaxValue)
+            .Select(x => x.FileUncompressedSize)
+            .Distinct()
+            .ToList();
+
+        var aesParams = fileParts.Select(x => x.AesParams).FirstOrDefault(x => x != null);
+        if (aesParams is null)
+            return (knownSizes.Count == 1 ? knownSizes[0] : packedSum, null);
+
+        long decoded;
+        if (aesParams.DecodedSize > 0 && aesParams.DecodedSize != long.MaxValue)
+            decoded = aesParams.DecodedSize;
+        else if (knownSizes.Count == 1)
+            decoded = knownSizes[0];
+        else
+        {
+            throw new UnsupportedRarUnknownSizeException(
+                "Encrypted RAR with unknown uncompressed size is not supported.");
+        }
+
+        if (aesParams.DecodedSize != decoded)
+        {
+            aesParams = new AesParams
+            {
+                Key = aesParams.Key,
+                Iv = aesParams.Iv,
+                DecodedSize = decoded,
+            };
+        }
+
+        return (decoded, aesParams);
     }
 
     [SuppressMessage("ReSharper", "PossibleMultipleEnumeration")]

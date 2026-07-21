@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.EntityFrameworkCore;
 using NzbWebDAV.Clients.Usenet;
 using NzbWebDAV.Config;
 using NzbWebDAV.Database;
@@ -29,6 +30,13 @@ public class LazyRarResolver(INntpClient usenetClient, ConfigManager configManag
     // Test seam: when set, volume opens skip NzbFileStream/yEnc so unit tests
     // can feed a crafted RAR with an understated Length without rapidyenc.
     internal Func<string[], long, Stream>? VolumeStreamFactory { get; set; }
+
+    // Test seam for FileSize reconciliation after a lazy archive becomes complete.
+    internal Func<Guid, DavMultipartFile.Meta, CancellationToken, Task>? ReconcileFileSizeAsync
+    {
+        get;
+        set;
+    }
 
     private sealed class Persistor
     {
@@ -280,20 +288,18 @@ public class LazyRarResolver(INntpClient usenetClient, ConfigManager configManag
                 PendingParts = newPending,
             };
 
+            var becameComplete = meta.IsLazy && newPending.Length == 0;
+
             mpf.Metadata = newMeta;
-            _ = SchedulePersistAsync(mpf);
+            _ = SchedulePersistAsync(mpf, becameComplete);
             return newMeta;
         }
     }
 
-    private static long SumResolvedBytes(DavMultipartFile.Meta meta)
-    {
-        var sum = 0L;
-        foreach (var p in meta.FileParts ?? []) sum += p.FilePartByteRange.Count;
-        return sum;
-    }
+    private static long SumResolvedBytes(DavMultipartFile.Meta meta) =>
+        MultipartFileSizeReconciler.SumResolvedBytes(meta);
 
-    private async Task SchedulePersistAsync(DavMultipartFile mpf)
+    private async Task SchedulePersistAsync(DavMultipartFile mpf, bool reconcileFileSize)
     {
         var p = _persistors.GetOrAdd(mpf.Id, _ => new Persistor());
         var myStamp = Interlocked.Increment(ref p.LatestStamp);
@@ -303,6 +309,12 @@ public class LazyRarResolver(INntpClient usenetClient, ConfigManager configManag
         {
             if (Volatile.Read(ref p.LatestStamp) != myStamp) return;
             await BlobStore.WriteBlob(mpf.Id, mpf).ConfigureAwait(false);
+
+            if (reconcileFileSize)
+            {
+                await ReconcileDavItemFileSizeAsync(mpf.Id, mpf.Metadata, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
         }
         catch (Exception e)
         {
@@ -313,6 +325,43 @@ public class LazyRarResolver(INntpClient usenetClient, ConfigManager configManag
         finally
         {
             p.Sem.Release();
+        }
+    }
+
+    private async Task ReconcileDavItemFileSizeAsync(
+        Guid fileBlobId,
+        DavMultipartFile.Meta meta,
+        CancellationToken ct)
+    {
+        var size = MultipartFileSizeReconciler.TryGetPublishedSize(meta);
+        if (size is null) return;
+
+        if (ReconcileFileSizeAsync is not null)
+        {
+            await ReconcileFileSizeAsync(fileBlobId, meta, ct).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            await using var ctx = new DavDatabaseContext();
+            var updated = await ctx.Items
+                .Where(i => i.FileBlobId == fileBlobId && i.FileSize != size.Value)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.FileSize, size.Value), ct)
+                .ConfigureAwait(false);
+            if (updated > 0)
+            {
+                Log.Information(
+                    "Reconciled DavItem FileSize for multipart blob {BlobId} to {Size}",
+                    fileBlobId, size.Value);
+            }
+        }
+        catch (Exception e)
+        {
+            Log.Warning(
+                "Failed to reconcile DavItem FileSize for multipart blob {BlobId} after resolve. Reason: {Reason}",
+                fileBlobId, e.Message);
+            Log.Debug(e, "Lazy RAR FileSize reconcile known failure stack");
         }
     }
 }

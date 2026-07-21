@@ -16,6 +16,26 @@ namespace NzbWebDAV.Tests.Queue;
 public class LazyRarProcessorTests
 {
     [Fact]
+    public async Task ProcessAsync_UnknownUncompressedSize_ReturnsNull()
+    {
+        const int packed = 200;
+        var volumeBytes = BuildRar4SplitFirstVolume(
+            "movie.mkv", packed, unchecked((int)0xffffffff));
+        var first = FileInfoFor("vol.rar", "first@example.com", volumeBytes.Length, volumeBytes.Length);
+        var trailing = FileInfoFor("vol.r00", "r00@example.com", encodedBytes: 2_100, fileSize: null);
+
+        using var client = new MemoryServingNntpClient(new Dictionary<string, byte[]>
+        {
+            ["first@example.com"] = volumeBytes,
+        });
+
+        var result = await new LazyRarProcessor([first, trailing], client, password: null, CancellationToken.None)
+            .ProcessAsync();
+
+        Assert.Null(result);
+    }
+
+    [Fact]
     public async Task ProcessAsync_SingleVolumeCannotCoverUncompressedSize_ReturnsNull()
     {
         const int packed = 200;

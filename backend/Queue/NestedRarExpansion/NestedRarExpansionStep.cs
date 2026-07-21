@@ -225,7 +225,8 @@ public static class NestedRarExpansionStep
                     partNumber,
                     header.GetAesParams(password),
                     header.UncompressedSize,
-                    releaseDate);
+                    releaseDate,
+                    header.IsUncompressedSizeUnknown);
                 expanded.AddRange(mapped);
             }
 

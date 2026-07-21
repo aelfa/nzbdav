@@ -107,8 +107,23 @@ public class LazyRarProcessor(
             return null;
         }
 
+        if (fileHeader.IsUncompressedSizeUnknown)
+        {
+            Log.Information(
+                "LazyRarProcessor: {File} has unknown uncompressed size, falling back to eager",
+                firstInfo.FileName);
+            return null;
+        }
+
         var aesParams = fileHeader.GetAesParams(password);
         var totalFileSize = aesParams?.DecodedSize ?? fileHeader.UncompressedSize;
+        if (totalFileSize <= 0)
+        {
+            Log.Information(
+                "LazyRarProcessor: {File} has non-positive size {Size}, falling back to eager",
+                firstInfo.FileName, totalFileSize);
+            return null;
+        }
 
         // Inner-file-vs-NZB-size sanity check (replaces the dropped
         // multi-file count check). Only compares when we have PAR2 sizes

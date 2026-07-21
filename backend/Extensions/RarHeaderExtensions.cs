@@ -15,7 +15,8 @@ public static class RarHeaderExtensions
         {
             Key = derived.Key,
             Iv = derived.Iv,
-            DecodedSize = header.UncompressedSize,
+            // Never persist SharpCompress's unknown-size unpack sentinel as a real length.
+            DecodedSize = header.IsUncompressedSizeUnknown ? 0 : header.UncompressedSize,
         };
     }
 }

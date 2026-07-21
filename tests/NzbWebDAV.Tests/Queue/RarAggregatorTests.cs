@@ -119,6 +119,66 @@ public class RarAggregatorTests
             () => RarAggregator.ValidateVolumes([segment]));
     }
 
+    [Fact]
+    public void ValidateVolumes_AllowsMixedUnknownAndKnownMatchingPackedSum()
+    {
+        var unknown = Segment(headerPart: 0, filenamePart: 1, start: 0, length: 40);
+        unknown = WithSize(unknown, fileUncompressedSize: long.MaxValue, unknown: true);
+        var known = Segment(headerPart: 1, filenamePart: 2, start: 40, length: 60);
+        known = WithSize(known, fileUncompressedSize: 100, unknown: false);
+
+        RarAggregator.ValidateVolumes([unknown, known]);
+        Assert.Equal(100, RarAggregator.ResolvePublishedFileSize([unknown, known]));
+    }
+
+    [Fact]
+    public void ResolvePublishedFileSize_AllUnknownUnencrypted_UsesPackedSum()
+    {
+        var a = WithSize(Segment(headerPart: 0, filenamePart: 1, start: 0, length: 40),
+            long.MaxValue, unknown: true);
+        var b = WithSize(Segment(headerPart: 1, filenamePart: 2, start: 40, length: 60),
+            long.MaxValue, unknown: true);
+
+        RarAggregator.ValidateVolumes([a, b]);
+        Assert.Equal(100, RarAggregator.ResolvePublishedFileSize([a, b]));
+    }
+
+    [Fact]
+    public void ResolvePublishedFileSize_AllUnknownEncrypted_Throws()
+    {
+        var aes = new AesParams { Key = new byte[16], Iv = new byte[16], DecodedSize = 0 };
+        var a = WithSize(Segment(headerPart: 0, filenamePart: 1, start: 0, length: 40),
+            long.MaxValue, unknown: true, aes);
+        var b = WithSize(Segment(headerPart: 1, filenamePart: 2, start: 40, length: 60),
+            long.MaxValue, unknown: true, aes);
+
+        Assert.Throws<NzbWebDAV.Exceptions.UnsupportedRarUnknownSizeException>(
+            () => RarAggregator.ValidateVolumes([a, b]));
+        Assert.Throws<NzbWebDAV.Exceptions.UnsupportedRarUnknownSizeException>(
+            () => RarAggregator.ResolvePublishedFileSize([a, b]));
+    }
+
+    private static RarProcessor.StoredFileSegment WithSize(
+        RarProcessor.StoredFileSegment segment,
+        long fileUncompressedSize,
+        bool unknown,
+        AesParams? aes = null)
+    {
+        return new RarProcessor.StoredFileSegment
+        {
+            NzbFile = segment.NzbFile,
+            PartSize = segment.PartSize,
+            ArchiveName = segment.ArchiveName,
+            PartNumber = segment.PartNumber,
+            ReleaseDate = segment.ReleaseDate,
+            PathWithinArchive = segment.PathWithinArchive,
+            ByteRangeWithinPart = segment.ByteRangeWithinPart,
+            AesParams = aes,
+            FileUncompressedSize = fileUncompressedSize,
+            IsUncompressedSizeUnknown = unknown,
+        };
+    }
+
     private static RarProcessor.StoredFileSegment Segment(
         int headerPart, int filenamePart, long start, long length)
         => SegmentNullable(headerPart, filenamePart, start, length);
