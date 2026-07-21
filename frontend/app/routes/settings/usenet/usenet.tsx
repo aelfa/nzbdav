@@ -1459,6 +1459,8 @@ function BenchmarkPanel(props: BenchmarkPanelProps) {
                         <option value="5000">5 GB</option>
                         <option value="10000">10 GB</option>
                         <option value="20000">20 GB</option>
+                        <option value="35000">35 GB</option>
+                        <option value="50000">50 GB</option>
                     </Select>
                     <Button variant="primary" onClick={onRun} disabled={!canBenchmark || isBenchmarking}>
                         {isBenchmarking && <span className="loading loading-spinner loading-xs" />}
